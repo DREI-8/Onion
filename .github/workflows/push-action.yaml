@@ -1,0 +1,16 @@
+name: Push Action
+on: 
+  push: 
+    branches:
+      - main
+
+jobs:
+  push:
+    runs-on: ubuntu-latest
+
+    steps: 
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Run Echo Command
+        run: echo "New push !"

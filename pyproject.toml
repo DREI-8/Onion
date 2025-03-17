@@ -1,0 +1,49 @@
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build_hook"
+
+[project]
+name = "onion"
+version = "0.1.0a0" 
+description = "A simple Deep Learning framework for Python."
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "AubinSeptier", email = "auteur1@exemple.com"},
+    {name = "DREI-8", email = "auteur2@exemple.com"},
+    {name = "Euler033", email = "auteur3@exemple.com"},
+    {name = "ThomasDelmas974", email = "auteur4@exemple.com"},
+]
+keywords = ["onion"]
+classifiers = [
+    "Development Status :: Alpha",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/"
+"Bug Tracker" = "https://github.com/"
+
+[tool.hatch.build.targets.wheel]
+packages = ["src/onion"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+disallow_incomplete_defs = true
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
