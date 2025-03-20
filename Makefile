@@ -1,10 +1,10 @@
-# Makefile pour la compilation C++ du projet Onion avec CMake et gcc
+# Makefile for C++ compilation of the Onion project with CMake and gcc
 
 # Variables
 CPP_DIR = ./onion/cpp
 BUILD_DIR = ./build
 CMAKE = cmake
-MAKE = make
+MAKE = mingw32-make
 CMAKE_GENERATOR = "Unix Makefiles"
 DEBUG_DIR = $(BUILD_DIR)/debug
 RELEASE_DIR = $(BUILD_DIR)/release
@@ -29,28 +29,28 @@ $(RELEASE_DIR):
 
 # Debug mode compilation
 debug-cpp: $(DEBUG_DIR)
-    @echo "Compilation C++ en mode debug..."
+    @echo "C++ compilation in debug mode..."
     cd $(DEBUG_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
         -DCMAKE_BUILD_TYPE=Debug \
         -DCMAKE_C_COMPILER=gcc \
         -DCMAKE_CXX_COMPILER=g++ \
         -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
         ../../$(CPP_DIR)
-    cd $(DEBUG_DIR) && $(MAKE)
+    cd $(DEBUG_DIR) && cmake --build .
 
 # Release mode compilation
 release-cpp: $(RELEASE_DIR)
-    @echo "Compilation C++ en mode release..."
+    @echo "C++ compilation in release mode..."
     cd $(RELEASE_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER=gcc \
         -DCMAKE_CXX_COMPILER=g++ \
         ../../$(CPP_DIR)
-    cd $(RELEASE_DIR) && $(MAKE)
+    cd $(RELEASE_DIR) && cmake --build .
 
 # pybind11 compilation
 pybind: release-cpp
-    @echo "Compilation des bindings Python avec pybind11..."
+    @echo "Compiling Python bindings with pybind11..."
     cd $(RELEASE_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
         -DCMAKE_BUILD_TYPE=Release \
         -DCMAKE_C_COMPILER=gcc \
@@ -58,12 +58,12 @@ pybind: release-cpp
         -DPYTHON_EXECUTABLE=$(shell which python3) \
         -DONION_CPP_DIR=../../$(CPP_DIR) \
         ../../$(PYBIND_DIR)
-    cd $(RELEASE_DIR) && $(MAKE)
-    @echo "Module Python compilé avec succès"
+    cd $(RELEASE_DIR) && cmake --build .
+    @echo "Python module successfully compiled in $(RELEASE_DIR)"
 
 # Launch gdb
 debug: debug-cpp
-    @echo "Pour débugger, utilisez: gdb $(DEBUG_DIR)/nom_executable"
+    @echo "To debug, use: gdb $(DEBUG_DIR)/executable_name"
 
 # Cleaner 
 clean:
@@ -71,16 +71,16 @@ clean:
 
 # Install
 install: release-cpp
-    cd $(RELEASE_DIR) && $(MAKE) install
+    cd $(RELEASE_DIR) && cmake --install .
 
 # Some help
 help:
-    @echo "Cibles disponibles:"
-    @echo "  all         : compile le code C++ en mode debug et les bindings Python"
-    @echo "  debug-cpp   : compile les extensions C++ en mode debug"
-    @echo "  release-cpp : compile les extensions C++ en mode release (optimisé)"
-    @echo "  pybind      : compile les bindings Python (nécessite release-cpp)"
-    @echo "  debug       : compile en debug et affiche la commande pour lancer gdb"
-    @echo "  install     : installe les composants C++ (après compilation release)"
-    @echo "  clean       : supprime les répertoires de build"
-    @echo "  help        : affiche cette aide"
+    @echo "Available targets:"
+    @echo "  all         : compiles C++ code in debug mode and Python bindings"
+    @echo "  debug-cpp   : compile C++ extensions in debug mode"
+    @echo "  release-cpp : compiles C++ extensions in release mode"
+    @echo "  pybind      : compile Python bindings (requires release-cpp)"
+    @echo "  debug       : compile in debug mode and display the command to start gdb"
+    @echo "  install     : installs C++ components (after compilation release)"
+    @echo "  clean       : deletes build directories"
+    @echo "  help        : displays this help"
