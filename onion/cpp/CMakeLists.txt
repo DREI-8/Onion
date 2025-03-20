@@ -7,10 +7,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # Fetch cpp files
 file(GLOB_RECURSE CPP_SOURCES "*.cpp")
+file(GLOB_RECURSE CPP_HEADERS "*.h" "*.hpp")
 
 # Create a library
-add_library(onion_cpp SHARED ${CPP_SOURCES})
+add_library(onion_cpp SHARED ${CPP_SOURCES} ${CPP_HEADERS})
 
 # Installation
 install(TARGETS onion_cpp DESTINATION lib)
-install(DIRECTORY . DESTINATION include/onion FILES_MATCHING PATTERN "*.h")
+install(FILES ${CPP_HEADERS} DESTINATION include/onion)
