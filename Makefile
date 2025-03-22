@@ -1,7 +1,7 @@
 # Makefile for C++ compilation of the Onion project with CMake and gcc
 
 # Variables
-CPP_DIR = ./onion/cpp
+CPP_DIR = ./onion
 BUILD_DIR = ./build
 CMAKE = cmake
 MAKE = make
