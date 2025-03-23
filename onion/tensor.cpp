@@ -54,7 +54,7 @@ Tensor* Tensor::reshape(int* new_shape, int new_ndim) {
         throw "Memory allocation failed";
     }
 
-    for (int i = 0; 0 < ndim; i++){
+    for (int i = 0; i < ndim; i++){
         shape[i] = new_shape[i];
     }
 
