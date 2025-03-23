@@ -6,7 +6,7 @@
 namespace py = pybind11;
 
 Tensor* numpty_to_tensor(py::array_t<float> numpy_array) {
-	py::buffer_into buffer = numpy_array.request();
+	py::buffer_info buffer = numpy_array.request();
 	float* data_ptr = static_cast<float*>(buffer.ptr);
 
 	float* data = (float*)malloc(buffer.size * sizeof(float));
