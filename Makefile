@@ -1,98 +1,91 @@
 # Makefile for C++ compilation of the Onion project with CMake and gcc
 
 # Variables
-CPP_DIR = ./onion
 BUILD_DIR = ./build
 CMAKE = cmake
 MAKE = make
 CMAKE_GENERATOR = "Unix Makefiles"
-DEBUG_DIR = $(BUILD_DIR)/debug
-RELEASE_DIR = $(BUILD_DIR)/release
-PYBIND_BUILD_DIR = $(BUILD_DIR)/pybind
 
-# pybind11 variables
-PYBIND_DIR = ./onion/pybind
-PYTHON_CONFIG = python3-config
-PYTHON_INCLUDES = $(shell $(PYTHON_CONFIG) --includes)
-PYBIND11_INCLUDES = $(shell python3 -m pybind11 --includes)
-
-.PHONY: all clean build-cpp debug-cpp release-cpp pybind
-
-# Default target
-all: debug-cpp pybind
-
-# Create build directories
-$(DEBUG_DIR):
-	mkdir -p $(DEBUG_DIR)
-
-$(RELEASE_DIR):
-	mkdir -p $(RELEASE_DIR)
-
-$(PYBIND_BUILD_DIR):
-	mkdir -p $(PYBIND_BUILD_DIR)
-
-PYTHON = python
 ifeq ($(OS),Windows_NT)
-    PYTHON_EXECUTABLE = $(subst \,/,$(shell $(PYTHON) -c "import sys; print(sys.executable)"))
+	PYTHON_EXECUTABLE = $(subst \,/,$(shell $(PYTHON) -c "import sys; print(sys.executable)"))
+	MKDIR = mkdir
 else
-    PYTHON_EXECUTABLE = $(shell $(PYTHON) -c "import sys; print(sys.executable)")
+	PYTHON_EXECUTABLE = $(shell $(PYTHON) -c "import sys; print(sys.executable)")
+	MKDIR = mkdir -p
 endif
 
-# Debug mode compilation
-debug-cpp: $(DEBUG_DIR)
-	@echo "C++ compilation in debug mode..."
-	cd $(DEBUG_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
+.PHONY: all clean debug release install weel develop
+
+all: release
+
+$(BUILD_DIR):
+	$(MKDIR) $(BUILD_DIR)
+
+$(BUILD_DIR)/debug: $(BUILD_DIR)
+	$(MKDIR) $(BUILD_DIR)/debug
+
+$(BUILD_DIR)/release: $(BUILD_DIR)
+	$(MKDIR) $(BUILD_DIR)/release
+
+# Compile in debug mode
+debug: $(BUILD_DIR)/debug
+	@echo "Building in debug mode..."
+	cd $(BUILD_DIR)/debug && $(CMAKE) -G $(CMAKE_GENERATOR) \
 		-DCMAKE_BUILD_TYPE=Debug \
-		-DCMAKE_C_COMPILER=gcc \
-		-DCMAKE_CXX_COMPILER=g++ \
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-		../../$(CPP_DIR)
-	cd $(DEBUG_DIR) && cmake --build .
-
-# Release mode compilation
-release-cpp: $(RELEASE_DIR)
-	@echo "C++ compilation in release mode..."
-	cd $(RELEASE_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_C_COMPILER=gcc \
-		-DCMAKE_CXX_COMPILER=g++ \
-		../../$(CPP_DIR)
-	cd $(RELEASE_DIR) && cmake --build .
-
-# pybind11 compilation
-pybind: release-cpp $(PYBIND_BUILD_DIR)
-	@echo "Compiling Python bindings with pybind11..."
-	cd $(PYBIND_BUILD_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
-		-DCMAKE_BUILD_TYPE=Release \
-		-DCMAKE_C_COMPILER=gcc \
-		-DCMAKE_CXX_COMPILER=g++ \
 		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
-		-DONION_CPP_LIB_DIR=../../$(RELEASE_DIR) \
-		-DCMAKE_LIBRARY_PATH=../../$(RELEASE_DIR) \
-		../../$(PYBIND_DIR)
-	cd $(PYBIND_BUILD_DIR) && cmake --build .
-	@echo "Python module successfully compiled in $(PYBIND_BUILD_DIR)"
+		../..
+	cd $(BUILD_DIR)/debug && $(MAKE) --build .
 
-# Launch gdb
-debug: debug-cpp
-	@echo "To debug, use: gdb $(DEBUG_DIR)/executable_name"
+# Compile in release mode
+release: $(BUILD_DIR)/release
+	@echo "Building in release mode..."
+	cd $(BUILD_DIR)/release && $(CMAKE) -G $(CMAKE_GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
+		../..
+	cd $(BUILD_DIR)/release && $(MAKE) --build .
 
-# Cleaner
+# Install the C++ and Python modules
+install: release
+	@echo "Installing the Onion project..."
+	cd $(BUILD_DIR)/release && $(CMAKE) --install
+
+# Create a wheel package
+wheel: release
+	@echo "Creating a wheel package..."
+	$(PYTHON) -m pip wheel . -w $(BUILD_DIR)/wheels
+
+# Install in develop mode
+develop: 
+	@echo "Installing in develop mode..."
+	$(PYTHON) -m pip install -e .
+
+# Clean the build directory
 clean:
+	@echo "Cleaning the build directory..."
 	rm -rf $(BUILD_DIR)
 
-# Install
-install: release-cpp
-	cd $(RELEASE_DIR) && cmake --install .
+# Publish on TestPyPI
+test-publish: wheel
+	@echo "Publishing on TestPyPI..."
+	twine check $(BUILD_DIR)/wheels/*
+	twine upload --repository-url https://test.pypi.org/legacy/ $(BUILD_DIR)/wheels/*
 
-# Some help
+# Publish on PyPI
+publish: wheel
+	@echo "Publishing on PyPI..."
+	twine check $(BUILD_DIR)/wheels/*
+	twine upload $(BUILD_DIR)/wheels/*
+
+# Help
 help:
 	@echo "Available targets:"
-	@echo "  all         : compiles C++ code in debug mode and Python bindings"
-	@echo "  debug-cpp   : compile C++ extensions in debug mode"
-	@echo "  release-cpp : compiles C++ extensions in release mode"
-	@echo "  pybind      : compile Python bindings (requires release-cpp)"
-	@echo "  debug       : compile in debug mode and display the command to start gdb"
-	@echo "  install     : installs C++ components (after compilation release)"
-	@echo "  clean       : deletes build directories"
-	@echo "  help        : displays this help"
+	@echo "  all:     Build the project in release mode"
+	@echo "  debug:   Build the project in debug mode"
+	@echo "  release: Build the project in release mode"
+	@echo "  install: Install the C++ and Python modules"
+	@echo "  wheel:   Create a wheel package"
+	@echo "  develop: Install in develop mode"
+	@echo "  clean:   Clean the build directory"
+	@echo "  help:    Display this help message"
