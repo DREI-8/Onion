@@ -14,7 +14,7 @@ else
 	MKDIR = mkdir -p
 endif
 
-.PHONY: all clean debug release install weel develop
+.PHONY: all clean debug release install wheel develop
 
 all: release
 
@@ -44,7 +44,7 @@ release: $(BUILD_DIR)/release
 		-DCMAKE_BUILD_TYPE=Release \
 		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
 		../..
-	cd $(BUILD_DIR)/release && $(MAKE) --build .
+	cd $(BUILD_DIR)/release && $(CMAKE) --build .
 
 # Install the C++ and Python modules
 install: release
