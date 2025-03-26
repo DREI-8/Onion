@@ -1,4 +1,2 @@
-# Ensuite, importez normalement votre module
+# Description: This file is used to import all the modules in the onion package.
 from .onion import *
-
-# Autres imports et définitions
