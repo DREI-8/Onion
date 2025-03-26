@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include "../tensor.h"
+#include "pybind_common.h"
 
 namespace py = pybind11;
 
@@ -48,7 +49,7 @@ py::array_t<float> tensor_to_numpty(Tensor* tensor) {
 	);
 }
 
-void init_tensor(py::module& m) {
+ONION_EXPORT void init_tensor(py::module& m) {
 	py::class_<Tensor>(m, "Tensor")
 		.def(py::init(&numpty_to_tensor), "Create a tensor from a numpy array")
 		.def_readonly("ndim", &Tensor::ndim, "Number of tensor dimensions")
@@ -65,7 +66,7 @@ void init_tensor(py::module& m) {
 
 			float result = self.get_item(indices_ptr);
 			free(indices_ptr);
-			return result;		
+			return result;
 		}, "Get an element from the tensor")
 		.def("reshape", [](Tensor& self, std::vector<int> new_shape) {
 			int* shape_ptr = (int*)malloc(new_shape.size() * sizeof(int));

@@ -2,6 +2,7 @@
 
 # Variables
 BUILD_DIR = ./build
+PYTHON = python
 CMAKE = cmake
 MAKE = make
 CMAKE_GENERATOR = "Unix Makefiles"
@@ -35,7 +36,7 @@ debug: $(BUILD_DIR)/debug
 		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
 		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
 		../..
-	cd $(BUILD_DIR)/debug && $(MAKE) --build .
+	cd $(BUILD_DIR)/debug && $(CMAKE) --build .
 
 # Compile in release mode
 release: $(BUILD_DIR)/release
@@ -49,7 +50,7 @@ release: $(BUILD_DIR)/release
 # Install the C++ and Python modules
 install: release
 	@echo "Installing the Onion project..."
-	cd $(BUILD_DIR)/release && $(CMAKE) --install
+	cd $(BUILD_DIR)/release && $(CMAKE) --install .
 
 # Create a wheel package
 wheel: release
