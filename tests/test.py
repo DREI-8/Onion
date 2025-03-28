@@ -18,7 +18,7 @@ print(f"Taille totale: {tensor.size}")
 
 # get_item method test
 print("\nTest d'accès aux éléments:")
-print(f"tensor[0,0,0] = {tensor.get_item([0,0,1])}")
+print(f"tensor[0,0,1] = {tensor.get_item([0,0,1])}")
 print(f"tensor[1,2,1] = {tensor.get_item([1,2,1])}")
 
 # reshape method test
@@ -27,7 +27,7 @@ try:
     reshaped_tensor = tensor.reshape(new_shape)
     print(f"\nTenseur reshapé avec succès à la forme {new_shape}")
     print(f"Nouvelle dimension: {reshaped_tensor.ndim}")
-    print(f"tensor[0,0,0] = {tensor.get_item([0,0,1])}")
+    print(f"tensor[0,0,1] = {tensor.get_item([0,0,1])}")
     print(f"tensor[1,2,1] = {tensor.get_item([1,2,1])}")
 except Exception as e:
     print(f"\nErreur lors du reshape: {e}")
