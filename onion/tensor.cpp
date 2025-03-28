@@ -28,6 +28,27 @@ Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
     this->device = nullptr;
 }
 
+Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim(ndim) {
+    this->size = 1;
+    for (int i = 0; i < ndim; i++) {
+        this->size *= shape[i];
+    }
+
+    this->data = shared_data;
+
+    this->shape = std::shared_ptr<int[]>(new int[ndim]);
+    memcpy(this->shape.get(), shape, ndim * sizeof(int));
+
+    this->strides = std::shared_ptr<int[]>(new int[ndim]);
+    int stride = 1;
+    for (int i = ndim - 1; i >= 0; i--) {
+        this->strides[i] = stride;
+        stride *= this->shape[i];
+    }
+
+    this->device = nullptr;
+}
+
 Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
     data = std::shared_ptr<float[]>(new float[size]);
     memcpy(data.get(), other.data.get(), size * sizeof(float));
@@ -72,11 +93,7 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
         shape_array[i] = new_shape[i];
     }
 
-    float* data_copy = new float[this->size];
-    assign_tensor_cpu(this, data_copy);
-    // memcpy(data_copy, this->data.get(), this->size * sizeof(float)); // Or used this
-
-    return std::make_shared<Tensor>(data_copy, shape_array, new_shape.size());
+    return std::make_shared<Tensor>(this->data, shape_array, new_shape.size());
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {

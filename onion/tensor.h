@@ -14,6 +14,7 @@ class Tensor {
         std::shared_ptr<char[]> device;
 
         Tensor(float* data, int* shape, int ndim);
+        Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim);
         Tensor(const Tensor& other);
         ~Tensor() = default;
 

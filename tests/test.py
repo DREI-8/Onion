@@ -34,8 +34,9 @@ except Exception as e:
     
 try:
     # addition
-    tensor2 = o.Tensor(np.array([[[1, 1], [1, 1], [1, 1]], 
-                                  [[1, 1], [1, 1], [1, 1]]], dtype=np.float32))
+    tensor2 = o.Tensor(np.array([[[1, 1], [1, 1]], 
+                                  [[1, 1], [1, 1]], 
+                                  [[1, 1], [1, 1]]], dtype=np.float32))
     result = reshaped_tensor + tensor2 - tensor2
     print("\nAddition réussie!")
     print(f"Résultat de l'addition:\n{result.get_item([1,2,1])}")
