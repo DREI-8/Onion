@@ -1,7 +1,7 @@
 # Makefile for C++ compilation of the Onion project with CMake and gcc
 
 # Variables
-BUILD_DIR = ./build
+BUILD_DIR = build
 PYTHON = python
 CMAKE = cmake
 MAKE = make
