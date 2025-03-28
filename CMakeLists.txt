@@ -30,11 +30,12 @@ list(FILTER CPP_SOURCES EXCLUDE REGEX "onion/pybind/.*")
 list(FILTER CPP_HEADERS EXCLUDE REGEX "onion/pybind/.*")
 
 # Create the C++ library
-# if(WIN32)
+
 add_library(onion_cpp STATIC ${CPP_SOURCES} ${CPP_HEADERS})
-# else()
-#     add_library(onion_cpp SHARED ${CPP_SOURCES} ${CPP_HEADERS})
-# endif()
+
+if(NOT WIN32)
+    set_target_properties(onion_cpp PROPERTIES POSITION_INDEPENDENT_CODE ON)
+endif()
 
 target_include_directories(onion_cpp PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/onion>
