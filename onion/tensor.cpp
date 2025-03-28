@@ -101,6 +101,12 @@ Tensor Tensor::operator+(const Tensor& other) const {
         throw std::runtime_error("Tensors must have same size for addition");
     }
 
+    for (int i = 0; i < ndim; i++) {
+        if (this->shape[i] != other.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for addition");
+        }
+    }
+
     float* result_data = new float[size];
     add_tensor_cpu(this, &other, result_data);
 
@@ -115,6 +121,12 @@ Tensor Tensor::operator-(const Tensor& other) const {
         throw std::runtime_error("Tensors must have same size for subtraction");
     }
 
+    for (int i = 0; i < ndim; i++) {
+        if (this->shape[i] != other.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for subtraction");
+        }
+    }
+
     float* result_data = new float[size];
     sub_tensor_cpu(this, &other, result_data);
 
@@ -127,6 +139,12 @@ Tensor Tensor::operator-(const Tensor& other) const {
 Tensor Tensor::operator*(const Tensor& other) const {
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for multiplication");
+    }
+
+    for (int i = 0; i < ndim; i++) {
+        if (this->shape[i] != other.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for multiplication");
+        }
     }
 
     float* result_data = new float[size];
