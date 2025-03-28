@@ -12,6 +12,7 @@ class Tensor {
         int ndim;
         int size;
         std::shared_ptr<char[]> device;
+        bool is_contiguous;
 
         Tensor(float* data, int* shape, int ndim);
         Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim);
@@ -24,6 +25,11 @@ class Tensor {
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
         Tensor operator*(const Tensor& other) const;
+
+        bool contiguous() const {
+            return is_contiguous;
+        }
+        Tensor to_contiguous() const;
 };
 
 #endif // TENSOR_H

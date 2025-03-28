@@ -26,6 +26,7 @@ Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
     }
 
     this->device = nullptr;
+    this->is_contiguous = true;
 }
 
 Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim(ndim) {
@@ -47,6 +48,7 @@ Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim
     }
 
     this->device = nullptr;
+    this->is_contiguous = true;
 }
 
 Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
@@ -67,6 +69,7 @@ Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
     else {
         device = nullptr;
     }
+    is_contiguous = other.is_contiguous;
 }
 
 float Tensor::get_item(const std::vector<int>& indices) const {
@@ -88,12 +91,12 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
         throw std::runtime_error("Cannot reshape tensor. Total number of elements in new shape does not match the current size of the tensor");
     }
 
-    int* shape_array = new int[new_shape.size()];
+    std::vector<int> shape_array(new_shape);
     for (size_t i = 0; i < new_shape.size(); i++){
         shape_array[i] = new_shape[i];
     }
 
-    return std::make_shared<Tensor>(this->data, shape_array, new_shape.size());
+    return std::make_shared<Tensor>(this->data, shape_array.data(), new_shape.size());
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {
@@ -154,4 +157,33 @@ Tensor Tensor::operator*(const Tensor& other) const {
     memcpy(shape_copy, shape.get(), ndim * sizeof(int));
 
     return Tensor(result_data, shape_copy, ndim);
+}
+
+Tensor Tensor::to_contiguous() const {
+    if (is_contiguous) {
+        return *this;
+    }
+
+    float* new_data = new float[size];
+
+    std::vector<int> indices(ndim, 0);
+    for (int i = 0; i < size; i++) {
+        new_data[i] = this->get_item(indices);
+
+        for (int j = ndim - 1; j >= 0; d--) {
+            indices[j]++;
+            if (indices[j] < shape[j]) {
+                break;
+            }
+            indices[j] = 0;
+        }
+    }
+
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+    Tensor contiguous_tensor(new_data, shape_copy, ndim);
+    contiguous_tensor.is_contiguous = true;
+
+    return contiguous_tensor;
 }
