@@ -95,7 +95,7 @@ Tensor Tensor::operator+(const Tensor& other) const {
 
 Tensor Tensor::operator-(const Tensor& other) const {
     if (this->size != other.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for subtraction");
     }
 
     float* result_data = new float[size];
@@ -109,7 +109,7 @@ Tensor Tensor::operator-(const Tensor& other) const {
 
 Tensor Tensor::operator*(const Tensor& other) const {
     if (this->size != other.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for multiplication");
     }
 
     float* result_data = new float[size];

@@ -36,7 +36,7 @@ try:
     # addition
     tensor2 = o.Tensor(np.array([[[1, 1], [1, 1], [1, 1]], 
                                   [[1, 1], [1, 1], [1, 1]]], dtype=np.float32))
-    result = reshaped_tensor + tensor2
+    result = reshaped_tensor + tensor2 - tensor2
     print("\nAddition réussie!")
     print(f"Résultat de l'addition:\n{result.get_item([1,2,1])}")
 except Exception as e:
@@ -44,7 +44,7 @@ except Exception as e:
     
 try:
     # soustraction
-    result = reshaped_tensor - tensor2
+    result = reshaped_tensor - tensor2 * tensor2
     print("\nSoustraction réussie!")
     print(f"Résultat de la soustraction:\n{result.get_item([1,2,1])}")
 except Exception as e:
@@ -52,7 +52,7 @@ except Exception as e:
     
 try:
     # multiplication
-    result = reshaped_tensor * tensor2
+    result = reshaped_tensor * tensor2 + tensor2
     print("\nMultiplication réussie!")
     print(f"Résultat de la multiplication:\n{result.get_item([1,2,1])}")
 except Exception as e:
