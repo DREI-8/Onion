@@ -4,75 +4,119 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <stdexcept>
 
-Tensor::Tensor(float* data, int* shape, int ndim) {
-    this->data = data;
-    this->shape = shape;
-    this->ndim = ndim;
-
+Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
     this->size = 1;
     for (int i = 0; i < ndim; i++) {
         this->size *= shape[i];
     }
 
-    this->strides = (int*)malloc(ndim * sizeof(int));
-    if (this->strides == NULL) {
-        throw "Memory allocation failed";
-    }
+    this->data = std::shared_ptr<float[]>(new float[this->size]);
+    memcpy(this->data.get(), data, this->size * sizeof(float));
+
+    this->shape = std::shared_ptr<int[]>(new int[ndim]);
+    memcpy(this->shape.get(), shape, ndim * sizeof(int));
+
+    this->strides = std::shared_ptr<int[]>(new int[ndim]);
     int stride = 1;
     for (int i = ndim - 1; i >= 0; i--) {
         this->strides[i] = stride;
-        stride *= shape[i];
+        stride *= this->shape[i];
     }
 
-    this->device = NULL;
+    this->device = nullptr;
 }
 
-Tensor::~Tensor() {
-    free(this->data);
-    free(this->shape);
-    free(this->strides);
-    free(this->device);
+Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
+    data = std::shared_ptr<float[]>(new float[size]);
+    memcpy(data.get(), other.data.get(), size * sizeof(float));
+
+    shape = std::shared_ptr<int[]>(new int[ndim]);
+    memcpy(shape.get(), other.shape.get(), ndim * sizeof(int));
+
+    strides = std::shared_ptr<int[]>(new int[ndim]);
+    memcpy(strides.get(), other.strides.get(), ndim * sizeof(int));
+
+    if (other.device) {
+        size_t device_len = strlen(other.device.get()) + 1;
+        device = std::shared_ptr<char[]>(new char[device_len]);
+        strcpy(device.get(), other.device.get());
+    }
+    else {
+        device = nullptr;
+    }
 }
 
-float Tensor::get_item(int* indices) {
+float Tensor::get_item(const std::vector<int>& indices) const {
     int index = 0;
     for (int i = 0; i < this->ndim; i++) {
         index += indices[i] * this->strides[i];
     }
 
-    float result;
-    result = this->data[index];
-
-    return result;
+    return this->data[index];
 }
 
-Tensor* Tensor::reshape(int* new_shape, int new_ndim) {
-    int ndim = new_ndim;
-    int* shape = (int*)malloc(ndim * sizeof(int));
-    if (shape == NULL) {
-        throw "Memory allocation failed";
+std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const {
+    int new_size = 1;
+    for (int ndim : new_shape) {
+        new_size *= ndim;
     }
 
-    for (int i = 0; i < ndim; i++){
-        shape[i] = new_shape[i];
+    if (new_size != this->size) {
+        throw std::runtime_error("Cannot reshape tensor. Total number of elements in new shape does not match the current size of the tensor");
     }
 
-    int size = 1;
-    for (int i = 0; i < ndim; i++) {
-        size *= shape[i];
+    int* shape_array = new int[new_shape.size()];
+    for (size_t i = 0; i < new_shape.size(); i++){
+        shape_array[i] = new_shape[i];
     }
 
-    if (size != this->size) {
-        throw "Cannot reshape tensor. Total number of elements in new shape does not match the current size of the tensor";
+    float* data_copy = new float[this->size];
+    assign_tensor_cpu(this, data_copy);
+    // memcpy(data_copy, this->data.get(), this->size * sizeof(float)); // Or used this
+
+    return std::make_shared<Tensor>(data_copy, shape_array, new_shape.size());
+}
+
+Tensor Tensor::operator+(const Tensor& other) const {
+    if (this->size != other.size) {
+        throw std::runtime_error("Tensors must have same size for addition");
     }
 
-    float* result_data = (float*)malloc(this->size * sizeof(float));
-    if (result_data == NULL) {
-        throw "Memory allocation failed";
+    float* result_data = new float[size];
+    add_tensor_cpu(this, &other, result_data);
+
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+    return Tensor(result_data, shape_copy, ndim);
+}
+
+Tensor Tensor::operator-(const Tensor& other) const {
+    if (this->size != other.size) {
+        throw std::runtime_error("Tensors must have same size for addition");
     }
 
-    assign_tensor_cpu(this, result_data);
+    float* result_data = new float[size];
+    sub_tensor_cpu(this, &other, result_data);
 
-    return new Tensor(result_data, shape, ndim);
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+    return Tensor(result_data, shape_copy, ndim);
+}
+
+Tensor Tensor::operator*(const Tensor& other) const {
+    if (this->size != other.size) {
+        throw std::runtime_error("Tensors must have same size for addition");
+    }
+
+    float* result_data = new float[size];
+    elementwise_mul_tensor_cpu(this, &other, result_data);
+
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+    return Tensor(result_data, shape_copy, ndim);
 }

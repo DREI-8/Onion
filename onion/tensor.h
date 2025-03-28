@@ -2,21 +2,27 @@
 #define TENSOR_H
 
 #include <memory>
+#include <vector>
 
 class Tensor {
     public:
-        float* data;
-        int* strides;
-        int* shape;
+        std::shared_ptr<float[]> data;
+        std::shared_ptr<int[]> strides;
+        std::shared_ptr<int[]> shape;
         int ndim;
         int size;
-        char* device;
+        std::shared_ptr<char[]> device;
 
         Tensor(float* data, int* shape, int ndim);
-        ~Tensor();
+        Tensor(const Tensor& other);
+        ~Tensor() = default;
 
-        float get_item(int* indices);
-        Tensor* reshape(int* new_shape, int new_ndim);
+        float get_item(const std::vector<int>& indices) const;
+        std::shared_ptr<Tensor> reshape(const std::vector<int>& new_shape) const;
+
+        Tensor operator+(const Tensor& other) const;
+        Tensor operator-(const Tensor& other) const;
+        Tensor operator*(const Tensor& other) const;
 };
 
 #endif // TENSOR_H
