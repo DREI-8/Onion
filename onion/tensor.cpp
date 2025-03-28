@@ -91,12 +91,19 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
         throw std::runtime_error("Cannot reshape tensor. Total number of elements in new shape does not match the current size of the tensor");
     }
 
+    if (!is_contiguous) {
+        return to_contiguous().reshape(new_shape);
+    }
+
     std::vector<int> shape_array(new_shape);
     for (size_t i = 0; i < new_shape.size(); i++){
         shape_array[i] = new_shape[i];
     }
 
-    return std::make_shared<Tensor>(this->data, shape_array.data(), new_shape.size());
+    auto reshaped_tensor =  std::make_shared<Tensor>(this->data, shape_array.data(), new_shape.size());
+    reshaped_tensor->is_contiguous = true;
+
+    return reshaped_tensor;
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {
@@ -116,7 +123,9 @@ Tensor Tensor::operator+(const Tensor& other) const {
     int* shape_copy = new int[ndim];
     memcpy(shape_copy, shape.get(), ndim * sizeof(int));
 
-    return Tensor(result_data, shape_copy, ndim);
+    Tensor tensor(result_data, shape_copy, ndim);
+    tensor.is_contiguous = true;
+    return tensor;
 }
 
 Tensor Tensor::operator-(const Tensor& other) const {
@@ -136,7 +145,9 @@ Tensor Tensor::operator-(const Tensor& other) const {
     int* shape_copy = new int[ndim];
     memcpy(shape_copy, shape.get(), ndim * sizeof(int));
 
-    return Tensor(result_data, shape_copy, ndim);
+    Tensor tensor(result_data, shape_copy, ndim);
+    tensor.is_contiguous = true;
+    return tensor;
 }
 
 Tensor Tensor::operator*(const Tensor& other) const {
@@ -156,7 +167,9 @@ Tensor Tensor::operator*(const Tensor& other) const {
     int* shape_copy = new int[ndim];
     memcpy(shape_copy, shape.get(), ndim * sizeof(int));
 
-    return Tensor(result_data, shape_copy, ndim);
+    Tensor tensor(result_data, shape_copy, ndim);
+    tensor.is_contiguous = true;
+    return tensor;
 }
 
 Tensor Tensor::to_contiguous() const {
