@@ -104,11 +104,20 @@ Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
     int num_blocks = (a.size + block_size - 1) / block_size;
     add_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, a.size);
 
-    float* host_result = new float[a.size];
-    cudaMemcpy(host_result, result_data, a.size * sizeof(float), cudaMemcpyDeviceToHost);
-    cudaFree(result_data);
+    int* shape_copy = new int[a.ndim];
+    memcpy(shape_copy, a.shape.get(), a.ndim * sizeof(int));
 
-    return Tensor(std::shared_ptr<float[]>(host_result), a.shape.get(), a.ndim);
+    auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
+    std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
+    
+    Tensor result(shared_result, shape_copy, a.ndim);
+    
+    const char* device_str = "cuda";
+    size_t str_len = strlen(device_str) + 1;
+    result.device = std::shared_ptr<char[]>(new char[str_len]);
+    strcpy(result.device.get(), device_str);
+    
+    return result;
 }
 
 #else
