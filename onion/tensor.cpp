@@ -5,6 +5,7 @@
 #include <string.h>
 #include <math.h>
 #include <stdexcept>
+#include "cuda.h"
 
 Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
     this->size = 1;
@@ -97,17 +98,30 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {
+    if (this->device != other.device) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for addition");
     }
 
-    float* result_data = new float[size];
-    add_tensor_cpu(this, &other, result_data);
+    if (this->ndim != other.ndim) {
+        throw std::runtime_error("Tensors must have same number of dimensions");
+    }
 
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+    if (this->is_cuda()) {
+        return add_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        add_tensor_cpu(this, &other, result_data);
 
-    return Tensor(result_data, shape_copy, ndim);
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+        return Tensor(result_data, shape_copy, ndim);
+    }
+    
 }
 
 Tensor Tensor::operator-(const Tensor& other) const {
@@ -137,3 +151,13 @@ Tensor Tensor::operator*(const Tensor& other) const {
 
     return Tensor(result_data, shape_copy, ndim);
 }
+
+void Tensor::to(const char* device_name) {
+    to_device(this, device_name);
+}
+
+bool Tensor::is_cuda() const {
+    return device && strcmp(device.get(), "cuda") == 0;
+}
+
+bool is_cuda_available();
