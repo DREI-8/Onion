@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.10)
-project(onion VERSION 0.1.0)
+project(onion VERSION 0.1.0 LANGUAGES CXX C)
 
 # Configure the compiler
 set(CMAKE_CXX_STANDARD 17)
@@ -15,11 +15,28 @@ endif()
 
 # Build options
 option(BUILD_PYTHON_BINDINGS "Build Python bindings" ON)
+option(USE_CUDA "Build with CUDA support" ON)
 
 # Output directories
 set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
+
+# Check for CUDA
+if(USE_CUDA)
+    include(CheckLanguage)
+    check_language(CUDA)
+    if(CMAKE_CUDA_COMPILER)
+        enable_language(CUDA)
+        set(CMAKE_CUDA_STANDARD 14)
+        set(CMAKE_CUDA_STANDARD_REQUIRED ON)
+        add_definitions(-DUSE_CUDA)
+        message(STATUS "CUDA support enabled")
+    else()
+        message(STATUS "CUDA not found, building without CUDA support")
+        set(USE_CUDA OFF)
+    endif()
+endif()
 
 # C++ sources
 file(GLOB_RECURSE CPP_SOURCES "onion/*.cpp")
@@ -29,8 +46,21 @@ file(GLOB_RECURSE CPP_HEADERS "onion/*.h" "onion/*.hpp")
 list(FILTER CPP_SOURCES EXCLUDE REGEX "onion/pybind/.*")
 list(FILTER CPP_HEADERS EXCLUDE REGEX "onion/pybind/.*")
 
-# Create the C++ library
+# Add CUDA sources
+file(GLOB_RECURSE CUDA_SOURCES "onion/*.cu")
+if(USE_CUDA)
+    # Set CUDA language for these sources
+    set_source_files_properties(${CUDA_SOURCES} PROPERTIES LANGUAGE CUDA)
+else()
+    # Treat as C++ sources
+    set_source_files_properties(${CUDA_SOURCES} PROPERTIES 
+        LANGUAGE CXX
+        COMPILE_FLAGS "-x c++"
+    )
+endif()
+list(APPEND CPP_SOURCES ${CUDA_SOURCES})
 
+# Create the C++ library
 add_library(onion_cpp STATIC ${CPP_SOURCES} ${CPP_HEADERS})
 
 if(NOT WIN32)
@@ -40,7 +70,13 @@ endif()
 target_include_directories(onion_cpp PUBLIC
     $<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/onion>
     $<INSTALL_INTERFACE:include/onion>
+    ${Python_INCLUDE_DIRS}
 )
+
+# Link CUDA libraries if enabled
+if(USE_CUDA)
+    target_link_libraries(onion_cpp PUBLIC cudart)
+endif()
 
 # Standard installation 
 install(TARGETS onion_cpp
