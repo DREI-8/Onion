@@ -73,15 +73,23 @@ try:
         cuda_tensor = cuda_tensor.to("cuda")
         print(f"Tenseur déplacé sur CUDA: {cuda_tensor.is_cuda()}")
         
-        # GPU operations
-        cuda_result = cuda_tensor + cuda_tensor
+        # GPU operations - Addition
+        cuda_result_add = cuda_tensor + cuda_tensor
         print("Addition sur GPU réussie!")
         
-        # Move back to CPU
-        cpu_result = cuda_result.to("cpu")
-        print(f"Résultat ramené sur CPU: {not cpu_result.is_cuda()}")
-        print(f"Valeur à [1,2]: {cpu_result.get_item([1,2])}")
-        print(f"Nombre de dimensions: {cpu_result.ndim}")
+        # GPU operations - Subtraction
+        cuda_result_sub = cuda_tensor - cuda_tensor
+        print("Soustraction sur GPU réussie!")
+        
+        # Move results back to CPU
+        cpu_result_add = cuda_result_add.to("cpu")
+        print(f"Résultat d'addition ramené sur CPU: {not cpu_result_add.is_cuda()}")
+        print(f"Valeur à [1,2]: {cpu_result_add.get_item([1,2])}")
+        
+        cpu_result_sub = cuda_result_sub.to("cpu")
+        print(f"Résultat de soustraction ramené sur CPU: {not cpu_result_sub.is_cuda()}")
+        print(f"Valeur à [1,2]: {cpu_result_sub.get_item([1,2])}")
+        print(f"Nombre de dimensions: {cpu_result_sub.ndim}")
     else:
         print("CUDA n'est pas disponible, tests GPU ignorés.")
 except Exception as e:
