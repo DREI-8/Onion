@@ -101,6 +101,7 @@ Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
     int block_size = 256;
     int num_blocks = (a.size + block_size - 1) / block_size;
     add_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, a.size);
+    cudaDeviceSynchronize();
 
     int* shape_copy = new int[a.ndim];
     memcpy(shape_copy, a.shape.get(), a.ndim * sizeof(int));
@@ -112,8 +113,7 @@ Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
     
     const char* device_str = "cuda";
     size_t str_len = strlen(device_str) + 1;
-    result.device = std::shared_ptr<char[]>(new char[str_len]);
-    strcpy(result.device.get(), device_str);
+    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { delete[] p; });
     
     return result;
 }
