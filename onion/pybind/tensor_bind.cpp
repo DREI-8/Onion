@@ -56,7 +56,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
 		.def("to", [](Tensor& tensor, const std::string& device) {
 			tensor.to(device.c_str());
-			return std::shared_ptr<Tensor>(&tensor, [](Tensor*) {});
+			return tensor;
 		}, "Move tensor to the specified device (cpu or cuda)")
 		.def("is_cuda", &Tensor::is_cuda, "Check if tensor is on CUDA")
 		.def("__array__", [](const Tensor& tensor) {
