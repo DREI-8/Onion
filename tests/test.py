@@ -59,4 +59,32 @@ try:
 except Exception as e:
     print(f"\nErreur lors de la multiplication: {e}")
 
+# CUDA Tests
+print("\n=== Tests CUDA ===")
+print(f"CUDA disponible: {o.is_cuda_available()}")
+
+try:
+    # Create tensor for CUDA operations
+    cuda_data = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
+    cuda_tensor = o.Tensor(cuda_data)
+    
+    # Move to CUDA if available
+    if o.is_cuda_available():
+        cuda_tensor = cuda_tensor.to("cuda")
+        print(f"Tenseur déplacé sur CUDA: {cuda_tensor.is_cuda()}")
+        
+        # GPU operations
+        cuda_result = cuda_tensor + cuda_tensor
+        print("Addition sur GPU réussie!")
+        
+        # Move back to CPU
+        cpu_result = cuda_result.to("cpu")
+        print(f"Résultat ramené sur CPU: {not cpu_result.is_cuda()}")
+        print(f"Valeur à [1,2]: {cpu_result.get_item([1,2])}")
+        print(f"Nombre de dimensions: {cpu_result.ndim}")
+    else:
+        print("CUDA n'est pas disponible, tests GPU ignorés.")
+except Exception as e:
+    print(f"Erreur lors des tests CUDA: {e}")
+
 print("\n=== Fin des tests ===")
