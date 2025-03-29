@@ -26,7 +26,7 @@ Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
         stride *= this->shape[i];
     }
 
-    this->device = nullptr;
+    this->device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
 }
 
 Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim(ndim) {
@@ -47,7 +47,7 @@ Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim
         stride *= this->shape[i];
     }
 
-    this->device = nullptr;
+    this->device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
 }
 
 Tensor::Tensor(const Tensor& other) : ndim(other.ndim), size(other.size) {
@@ -64,7 +64,7 @@ Tensor::Tensor(const Tensor& other) : ndim(other.ndim), size(other.size) {
         device = std::shared_ptr<char[]>(new char[device_len]);
         strncpy(device.get(), other.device.get(), device_len);
     } else {
-        device = nullptr;
+        device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
     }
 }
 
@@ -96,7 +96,7 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {
-    if (this->device != other.device) {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");
     }
 
@@ -123,17 +123,21 @@ Tensor Tensor::operator+(const Tensor& other) const {
 }
 
 Tensor Tensor::operator-(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for subtraction");
     }
 
-    float* result_data = new float[size];
-    sub_tensor_cpu(this, &other, result_data);
-
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
-
-    return Tensor(result_data, shape_copy, ndim);
+    if (this->is_cuda()) {
+        return sub_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        sub_tensor_cpu(this, &other, result_data);
+        return Tensor(result_data, shape.get(), ndim);
+    }
 }
 
 Tensor Tensor::operator*(const Tensor& other) const {
