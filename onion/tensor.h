@@ -21,9 +21,14 @@ class Tensor {
         float get_item(const std::vector<int>& indices) const;
         std::shared_ptr<Tensor> reshape(const std::vector<int>& new_shape) const;
 
+        void to(const char* device_name);
+        bool is_cuda() const;
+
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
         Tensor operator*(const Tensor& other) const;
 };
+
+bool is_cuda_available();
 
 #endif // TENSOR_H
