@@ -2,6 +2,7 @@
 #include <pybind11/numpy.h>
 #include <pybind11/stl.h>
 #include "../tensor.h"
+#include "../cuda.h"
 #include "pybind_common.h"
 
 namespace py = pybind11;
@@ -56,4 +57,6 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("__array__", [](const Tensor& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array");
+		
+	m.def("is_cuda_available", &is_cuda_available, "Check if CUDA is available");
 }
