@@ -150,6 +150,34 @@ Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
     return result;
 }
 
+__global__ void multiply_kernel(const float* a, const float* b, float* result, int size) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        result[idx] = a[idx] * b[idx];
+    }
+}
+
+Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
+    if (a.size != b.size) throw std::runtime_error("Tensors must have same size for CUDA multiplication");
+    
+    float* result_data;
+    cudaMalloc(&result_data, a.size * sizeof(float));
+    
+    int block_size = 256;
+    int num_blocks = (a.size + block_size - 1) / block_size;
+    multiply_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, a.size);
+    cudaDeviceSynchronize();
+    
+    int* shape_copy = new int[a.ndim];
+    memcpy(shape_copy, a.shape.get(), a.ndim * sizeof(int));
+    
+    auto deleter = [](float* p) { cudaFree(p); };
+    Tensor result(std::shared_ptr<float[]>(result_data, deleter), shape_copy, a.ndim);
+    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    
+    return result;
+}
+
 #else
 
 bool is_cuda_available() {
@@ -171,6 +199,21 @@ void to_device(Tensor* tensor, const char* target_device) {
         fprintf(stderr, "CUDA not available in this build\n");
         throw std::runtime_error("CUDA not available");
     }
+}
+
+Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
 }
 
 #endif // __CUDACC__
