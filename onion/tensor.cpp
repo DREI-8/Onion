@@ -1,5 +1,7 @@
 #include "tensor.h"
 #include "cpu.h"
+#include "cuda.h"
+
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -25,7 +27,7 @@ Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
         stride *= this->shape[i];
     }
 
-    this->device = nullptr;
+    this->device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
     this->is_contiguous = true;
 }
 
@@ -47,13 +49,12 @@ Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim
         stride *= this->shape[i];
     }
 
-    this->device = nullptr;
+    this->device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
     this->is_contiguous = true;
 }
 
-Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
-    data = std::shared_ptr<float[]>(new float[size]);
-    memcpy(data.get(), other.data.get(), size * sizeof(float));
+Tensor::Tensor(const Tensor& other) : ndim(other.ndim), size(other.size) {
+    data = other.data;
 
     shape = std::shared_ptr<int[]>(new int[ndim]);
     memcpy(shape.get(), other.shape.get(), ndim * sizeof(int));
@@ -62,12 +63,11 @@ Tensor::Tensor(const Tensor& other): ndim(other.ndim), size(other.size) {
     memcpy(strides.get(), other.strides.get(), ndim * sizeof(int));
 
     if (other.device) {
-        size_t device_len = strlen(other.device.get()) + 1;
+        size_t device_len = strlen(other.device.get()) + 1; // +1 for null terminator
         device = std::shared_ptr<char[]>(new char[device_len]);
-        strcpy(device.get(), other.device.get());
-    }
-    else {
-        device = nullptr;
+        strncpy(device.get(), other.device.get(), device_len);
+    } else {
+        device = std::shared_ptr<char[]>(strdup("cpu"), [](char* p) { free(p); });
     }
     is_contiguous = other.is_contiguous;
 }
@@ -104,6 +104,10 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
 }
 
 Tensor Tensor::operator+(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for addition");
     }
@@ -114,18 +118,30 @@ Tensor Tensor::operator+(const Tensor& other) const {
         }
     }
 
-    float* result_data = new float[size];
-    add_tensor_cpu(this, &other, result_data);
+    if (this->ndim != other.ndim) {
+        throw std::runtime_error("Tensors must have same number of dimensions");
+    }
 
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+    if (this->is_cuda()) {
+        return add_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        add_tensor_cpu(this, &other, result_data);
 
-    Tensor tensor(result_data, shape_copy, ndim);
-    tensor.is_contiguous = true;
-    return tensor;
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+
+        Tensor tensor(result_data, shape_copy, ndim);
+        tensor.is_contiguous = true;
+        return tensor;        
+    }  
 }
 
 Tensor Tensor::operator-(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for subtraction");
     }
@@ -136,18 +152,26 @@ Tensor Tensor::operator-(const Tensor& other) const {
         }
     }
 
-    float* result_data = new float[size];
-    sub_tensor_cpu(this, &other, result_data);
+    if (this->is_cuda()) {
+        return sub_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        sub_tensor_cpu(this, &other, result_data);
 
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
-
-    Tensor tensor(result_data, shape_copy, ndim);
-    tensor.is_contiguous = true;
-    return tensor;
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+    
+        Tensor tensor(result_data, shape_copy, ndim);
+        tensor.is_contiguous = true;
+        return tensor;
+    }
 }
 
 Tensor Tensor::operator*(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for multiplication");
     }
@@ -158,15 +182,23 @@ Tensor Tensor::operator*(const Tensor& other) const {
         }
     }
 
-    float* result_data = new float[size];
-    elementwise_mul_tensor_cpu(this, &other, result_data);
+    if (this->is_cuda()) {
+        return mul_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        elementwise_mul_tensor_cpu(this, &other, result_data);
 
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+        
+        Tensor tensor(result_data, shape_copy, ndim);
+        tensor.is_contiguous = true;
+        return tensor;
+    }
+}
 
-    Tensor tensor(result_data, shape_copy, ndim);
-    tensor.is_contiguous = true;
-    return tensor;
+bool Tensor::contiguous() const {
+    return is_contiguous;
 }
 
 Tensor Tensor::to_contiguous() const {
@@ -197,3 +229,13 @@ Tensor Tensor::to_contiguous() const {
 
     return contiguous_tensor;
 }
+
+void Tensor::to(const char* device_name) {
+    to_device(this, device_name);
+}
+
+bool Tensor::is_cuda() const {
+    return device && strcmp(device.get(), "cuda") == 0;
+}
+
+bool is_cuda_available();

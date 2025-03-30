@@ -26,10 +26,13 @@ class Tensor {
         Tensor operator-(const Tensor& other) const;
         Tensor operator*(const Tensor& other) const;
 
-        bool contiguous() const {
-            return is_contiguous;
-        }
+        bool contiguous() const;
         Tensor to_contiguous() const;
+
+        void to(const char* device_name);
+        bool is_cuda() const;
 };
+
+bool is_cuda_available();
 
 #endif // TENSOR_H
