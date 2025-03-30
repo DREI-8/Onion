@@ -141,17 +141,21 @@ Tensor Tensor::operator-(const Tensor& other) const {
 }
 
 Tensor Tensor::operator*(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
     if (this->size != other.size) {
         throw std::runtime_error("Tensors must have same size for multiplication");
     }
 
-    float* result_data = new float[size];
-    elementwise_mul_tensor_cpu(this, &other, result_data);
-
-    int* shape_copy = new int[ndim];
-    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
-
-    return Tensor(result_data, shape_copy, ndim);
+    if (this->is_cuda()) {
+        return mul_tensor_cuda(*this, other);
+    } else {
+        float* result_data = new float[size];
+        elementwise_mul_tensor_cpu(this, &other, result_data);
+        return Tensor(result_data, shape.get(), ndim);
+    }
 }
 
 void Tensor::to(const char* device_name) {
