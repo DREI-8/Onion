@@ -5,7 +5,7 @@
 #include "../cuda.h"
 #include "pybind_common.h"
 
-#ifdef __CUDACC__
+#ifdef USE_CUDA
 #include <cuda_runtime.h>
 #endif
 
@@ -40,7 +40,7 @@ py::array_t<float> tensor_to_numpy(const Tensor& tensor) {
     float* data = new float[tensor.size];
 
     if (tensor.is_cuda()) {
-#ifdef __CUDACC__
+#ifdef USE_CUDA
         float* cuda_data = tensor.data.get();
         cudaError_t err = cudaMemcpy(data, cuda_data, tensor.size * sizeof(float), cudaMemcpyDeviceToHost);
         if (err != cudaSuccess) {
