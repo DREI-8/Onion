@@ -1,2 +1,3 @@
 # Python libraries required for the library
 pybind11==2.13.6
+numpy==2.2.4
