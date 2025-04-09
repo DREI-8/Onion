@@ -23,3 +23,26 @@ void assign_tensor_cpu(const Tensor* tensor, float* result_data) {
         result_data[i] = tensor->data[i];
     }
 }
+
+void transpose_2d_cpu(const Tensor* tensor, float* result_data) {
+    int rows = tensor->shape[0];
+    int cols = tensor->shape[1];
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            result_data[j * rows + i] = tensor->data[i * cols + j];
+        }
+    }
+}
+
+void transpose_3d_cpu(const Tensor* tensor, float* result_data) {
+    int batch = tensor->shape[0];
+    int rows = tensor->shape[1];
+    int cols = tensor->shape[2];
+    for (int i = 0; i < batch; i++) {
+        for (int j = 0; j < rows; j++) {
+            for (int k = 0; k < cols; k++) {
+                result_data[k * rows * batch + j * batch + i] = tensor->data[i * rows * cols + j * cols + k];
+            }
+        }
+    }
+}

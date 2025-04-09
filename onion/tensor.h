@@ -21,6 +21,7 @@ class Tensor {
 
         float get_item(const std::vector<int>& indices) const;
         std::shared_ptr<Tensor> reshape(const std::vector<int>& new_shape) const;
+        std::shared_ptr<Tensor> transpose() const;
 
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
