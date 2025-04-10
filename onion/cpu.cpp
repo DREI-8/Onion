@@ -58,12 +58,12 @@ void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
     }
     else {
         for (int i = 0; i < out_size; i++) {
-            result_data[i] = - INFINITY;
+            result_data[i] = -INFINITY;
         }
 
         for (int i = 0; i < out_size; i++) {
             int remainder = i;
-            float max_val = -INFINITY;
+            float max_value = -INFINITY;
             
             for (int j = 0; j < tensor->shape.get()[axis]; j++) {
                 int input_index = 0;
@@ -81,9 +81,49 @@ void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
                     }
                     input_index += current * tensor->strides.get()[k];
                 }
-                max_val = fmax(max_val, tensor->data[input_index]);
+                max_value = fmax(max_value, tensor->data[input_index]);
             }
-            result_data[i] = max_val;
+            result_data[i] = max_value;
+        }
+    }
+}
+
+void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int axis) {
+    if (axis == -1) {
+        float min_value = INFINITY;
+        for (int i = 0; i < tensor->size; i++) {
+            min_value = fmin(min_value, tensor->data[i]);
+        }
+        result_data[0] = min_value;
+    }
+    else {
+        for (int i = 0; i < out_size; i++) {
+            result_data[i] = INFINITY;
+        }
+
+        for (int i = 0; i < out_size; i++) {
+            int remainder = i;
+            float min_value = INFINITY;
+            
+            for (int j = 0; j < tensor->shape.get()[axis]; j++) {
+                int input_index = 0;
+                int idx = 0;
+                int rem = remainder;
+
+                for (int k = 0; k < tensor->ndim; k++) {
+                    int current = 0;
+                    if (k == axis) {
+                        current = j;
+                    } else {
+                        current = rem % result_shape[idx];
+                        rem /= result_shape[idx];
+                        idx++;
+                    }
+                    input_index += current * tensor->strides.get()[k];
+                }
+                min_value = fmin(min_value, tensor->data[input_index]);
+            }
+            result_data[i] = min_value;
         }
     }
 }
