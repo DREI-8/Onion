@@ -71,6 +71,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("get_item", &Tensor::get_item, "Get an element from the tensor")
 		.def("reshape", &Tensor::reshape, "Reshape the tensor")
 		.def("transpose", &Tensor::transpose, "Transpose the tensor")
+		.def("max", &Tensor::max, "Get the maximum value along an axis")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
 		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")

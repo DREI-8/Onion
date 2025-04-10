@@ -136,6 +136,67 @@ std::shared_ptr<Tensor> Tensor::transpose() const {
     }
 }
 
+std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
+    if (!is_contiguous) {
+        return to_contiguous().max(axis, keepdims);
+    }
+
+    std::vector<int> out_shape;
+    int out_ndim = 0;
+
+    if (axis == -1) {
+        if (keepdims) {
+            out_shape.resize(this->ndim, 1);
+            out_ndim = this->ndim;
+        } else {
+            out_shape.push_back(1);
+            out_ndim = 1;
+        }
+    } else {
+        if (axis < 0 || axis >= this->ndim) {
+            throw std::runtime_error("Axis out of bounds in max");
+        }
+        if (keepdims) {
+            for (int i = 0; i < this->ndim; i++) {
+                if (i == axis) {
+                    out_shape.push_back(1);
+                } else {
+                    out_shape.push_back(this->shape.get()[i]);
+                }
+            }
+            out_ndim = this->ndim;
+        } else {
+            for (int i = 0; i < this->ndim; i++) {
+                if (i != axis) {
+                    out_shape.push_back(this->shape.get()[i]);
+                }
+            }
+            out_ndim = this->ndim - 1;
+        }
+    }
+
+    int out_size = 1;
+    for (int dim : out_shape) {
+        out_size *= dim;
+    }
+
+    if(this->is_cuda()) {
+        // CUDA Implementation - not implemented yet
+        throw std::runtime_error("CUDA max not implemented");
+    }
+    else {
+        float* result_data = new float[out_size];
+        int* shape_arr = new int[out_shape.size()];
+        for (size_t i = 0; i < out_shape.size(); i++) {
+            shape_arr[i] = out_shape[i];
+        }
+        max_tensor_cpu(this, result_data, out_size, shape_arr, axis);
+        delete[] shape_arr;
+
+        return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
+    }
+}
+
 Tensor Tensor::operator+(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");
