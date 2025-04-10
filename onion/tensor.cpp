@@ -158,11 +158,7 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
         }
         if (keepdims) {
             for (int i = 0; i < this->ndim; i++) {
-                if (i == axis) {
-                    out_shape.push_back(1);
-                } else {
-                    out_shape.push_back(this->shape.get()[i]);
-                }
+                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
             }
             out_ndim = this->ndim;
         } else {
@@ -186,11 +182,12 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
     }
     else {
         float* result_data = new float[out_size];
-        int* shape_arr = new int[out_shape.size()];
-        for (size_t i = 0; i < out_shape.size(); i++) {
+        int len = out_shape.size();
+        int* shape_arr = new int[len];
+        for (int i = 0; i < len; i++) {
             shape_arr[i] = out_shape[i];
         }
-        max_tensor_cpu(this, result_data, out_size, shape_arr, axis);
+        max_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
         delete[] shape_arr;
 
         return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
