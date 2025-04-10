@@ -82,6 +82,10 @@ float Tensor::get_item(const std::vector<int>& indices) const {
 }
 
 std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const {
+    if (!is_contiguous) {
+        return to_contiguous().reshape(new_shape);
+    }
+    
     int new_size = 1;
     for (int ndim : new_shape) {
         new_size *= ndim;
@@ -89,10 +93,6 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
 
     if (new_size != this->size) {
         throw std::runtime_error("Cannot reshape tensor. Total number of elements in new shape does not match the current size of the tensor");
-    }
-
-    if (!is_contiguous) {
-        return to_contiguous().reshape(new_shape);
     }
 
     std::vector<int> shape_array(new_shape);
