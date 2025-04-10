@@ -31,6 +31,33 @@ try:
     print(f"tensor[1,2,1] = {tensor.get_item([1,2,1])}")
 except Exception as e:
     print(f"\nErreur lors du reshape: {e}")
+
+# Transpose method test 
+try:
+    print("\n=== Test de la méthode transpose ===")
+    # Create a numpy array for testing transpose
+    data_transpose = np.array([[ 1.0028, -0.9893,  0.5809],
+        [-0.1669,  0.7299,  0.4942]], dtype=np.float32)
+    print(f"\nDonnées numpy originales pour transpose:\n{data_transpose}")
+    
+    # Create a tensor from the numpy array
+    tensor_transpose = o.Tensor(data_transpose)
+    print(f"\nTenseur créé avec succès pour transpose!")
+    print(f"Shape avant transpose: {tensor_transpose}")
+    
+    # Transpose the tensor
+    transposed_tensor = tensor_transpose.transpose()
+    print(f"\nTenseur transposé avec succès!")
+    print(f"Shape après transpose: {transposed_tensor}")
+    
+    # Print some values to check the transpose
+    print(f"tensor_transpose[0,0,0] = {tensor_transpose.get_item([0,0,0])}")
+    print(f"transposed_tensor[0,0,0] = {transposed_tensor.get_item([0,0,0])}")
+    print(f"tensor_transpose[0,1,0] = {tensor_transpose.get_item([0,1,0])}")
+    print(f"transposed_tensor[1,0,0] = {transposed_tensor.get_item([1,0,0])}")
+
+except Exception as e:
+    print(f"\nErreur lors du transpose: {e}")
     
 try:
     # addition
