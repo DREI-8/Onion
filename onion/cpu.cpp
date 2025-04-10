@@ -60,7 +60,7 @@ void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
         for (int i = 0; i < out_size; i++) {
             std::vector<int> out_idx;
             if(out_ndim == tensor->ndim) { // If keepdims is true
-                out_idx.resize(tensor->ndim -1, 0);
+                out_idx.resize(tensor->ndim - 1, 0);
                 int tmp = i;
                 for (int j = tensor->ndim - 2; j >=0; j--) {
                     out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
@@ -98,7 +98,7 @@ void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
     }
 }
 
-void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int axis) {
+void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
     if (axis == -1) {
         float min_value = INFINITY;
         for (int i = 0; i < tensor->size; i++) {
@@ -108,28 +108,38 @@ void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
     }
     else {
         for (int i = 0; i < out_size; i++) {
-            result_data[i] = INFINITY;
-        }
+            std::vector<int> out_idx;
+            if(out_ndim == tensor->ndim) { // If keepdims is true
+                out_idx.resize(tensor->ndim - 1, 0);
+                int tmp = i;
+                for (int j = tensor->ndim - 2; j >=0; j--) {
+                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
+                    tmp /= result_shape[j < axis ? j : j + 1];
+                }
+            } else { // If keepdims is false
+                out_idx.resize(out_ndim, 0);
+                int tmp = i;
+                for (int j = out_ndim - 1; j >=0; j--) {
+                    out_idx[j] = tmp % result_shape[j];
+                    tmp /= result_shape[j];
+                }
+            }
 
-        for (int i = 0; i < out_size; i++) {
-            int remainder = i;
             float min_value = INFINITY;
-            
-            for (int j = 0; j < tensor->shape.get()[axis]; j++) {
-                int input_index = 0;
-                int idx = 0;
-                int rem = remainder;
-
-                for (int k = 0; k < tensor->ndim; k++) {
-                    int current = 0;
-                    if (k == axis) {
-                        current = j;
+            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
+                std::vector<int> full_idx;
+                full_idx.resize(tensor->ndim, 0);
+                int out_d = 0;
+                for (int j = 0; j < tensor->ndim; j++) {
+                    if (j == axis) {
+                        full_idx[j] = i;
                     } else {
-                        current = rem % result_shape[idx];
-                        rem /= result_shape[idx];
-                        idx++;
+                        full_idx[j] = out_idx[out_d++];
                     }
-                    input_index += current * tensor->strides.get()[k];
+                }
+                int input_index = 0;
+                for (int j = 0; j < tensor->ndim; j++) {
+                    input_index += full_idx[j] * tensor->strides.get()[j];
                 }
                 min_value = fmin(min_value, tensor->data[input_index]);
             }

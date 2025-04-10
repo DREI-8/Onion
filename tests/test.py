@@ -67,11 +67,11 @@ try:
     print(f"Tensor: {tensor_max_min}")
     
     # Test max
-    max_value = tensor_max_min.max(axis=0, keepdims=True)
+    max_value = tensor_max_min.max(axis=-1, keepdims=True)
     print(f"\nValeur maximale le long de l'axe: {max_value}")
     
     # Test min
-    min_value = tensor_max_min.min(axis=0, keepdims=True)
+    min_value = tensor_max_min.min(axis=-1, keepdims=False)
     print(f"\nValeur minimale le long de l'axe: {min_value}")
 except Exception as e:
     print(f"\nErreur lors du max/min: {e}")
