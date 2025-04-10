@@ -103,6 +103,39 @@ std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const
     return reshaped_tensor;
 }
 
+std::shared_ptr<Tensor> Tensor::transpose() const {
+    if (!is_contiguous) {
+        return to_contiguous().transpose();
+    }
+
+    std::vector<int> new_shape(this->ndim);
+    for (int i = 0; i < this->ndim; i++) {
+        new_shape[i] = this->shape[ndim - 1 - i];
+    }
+
+    if (this->is_cuda()) {
+        // Cuda Transpose - not implemented yet
+        throw std::runtime_error("CUDA transpose not implemented");
+    }
+    else {
+        float* result_data = new float[this->size];
+        switch (ndim) {
+            case 1:
+                memcpy(result_data, this->data.get(), size * sizeof(float));
+                break;
+            case 2:
+                transpose_2d_cpu(this, result_data);
+                break;
+            case 3:
+                transpose_3d_cpu(this, result_data);
+                break;
+            default:
+                throw std::runtime_error("Unsupported number of dimensions for transpose");
+        }
+        return std::make_shared<Tensor>(result_data, new_shape.data(), this->ndim);
+    }
+}
+
 Tensor Tensor::operator+(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");

@@ -70,6 +70,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def_readonly("size", &Tensor::size, "Number of elements in the tensor")
 		.def("get_item", &Tensor::get_item, "Get an element from the tensor")
 		.def("reshape", &Tensor::reshape, "Reshape the tensor")
+		.def("transpose", &Tensor::transpose, "Transpose the tensor")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
 		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
