@@ -1,0 +1,50 @@
+name: Publish Onion Package
+
+on:
+#   push:
+#     branches: [main, dev]
+  workflow_dispatch:
+
+jobs:
+  build_and_publish_cuda:
+    name: Build CUDA Wheel and Publish to PyPI
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write
+
+    container:
+      image: nvidia/cuda:12.2.0-devel-ubuntu22.04
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python in CUDA container
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install OS build dependencies
+        run: |
+          apt-get update
+          apt-get install -y build-essential cmake
+
+      - name: Install Python build dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install wheel setuptools build twine
+          pip install -r requirements.txt
+
+      - name: Build wheel with CUDA support using Makefile
+        run: make wheel
+
+      - name: Publish Package to Test PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          packages-dir: build/wheels
+          repository-url: https://test.pypi.org/legacy/
+
+    #   - name: Publish Package to PyPI
+    #     uses: pypa/gh-action-pypi-publish@release/v1
+    #     with:
+    #       packages-dir: build/wheels

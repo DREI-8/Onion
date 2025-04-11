@@ -10,10 +10,8 @@ readme = "README.md"
 requires-python = ">=3.8"
 license = {text = "MIT"}
 authors = [
-    {name = "AubinSeptier", email = "auteur1@exemple.com"},
+    {name = "AubinSeptier", email = "aubinseptier@gmail.com"},
     {name = "DREI-8", email = "auteur2@exemple.com"},
-    {name = "Euler033", email = "auteur3@exemple.com"},
-    {name = "ThomasDelmas974", email = "auteur4@exemple.com"},
 ]
 keywords = ["onion"]
 classifiers = [
