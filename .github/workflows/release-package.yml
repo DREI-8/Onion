@@ -12,8 +12,8 @@ jobs:
     permissions:
       id-token: write
     strategy:
-        matrix:
-            os: [ubuntu-latest]
+      matrix:
+        os: [ubuntu-latest]
 
     steps:
       - name: Checkout repository
@@ -22,7 +22,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
-          python-version: '3.10'
+          python-version: '3.11'
 
       - name: Install cibuildwheel and dependencies
         run: |
@@ -33,9 +33,21 @@ jobs:
       - name: Build wheel with cibuildwheel (Linux CUDA)
         run: cibuildwheel --output-dir wheelhouse
         env:
-          CIBW_MANYLINUX_X86_64_IMAGE: "nvidia/cuda:11.8.0-devel-ubuntu22.04"
-          CIBW_ENVIRONMENT_LINUX: 'CMAKE_ARGS="-DUSE_CUDA=ON"'
-          CIBW_BUILD: "cp310-manylinux_x86_64"
+          CIBW_BEFORE_ALL_LINUX: |
+            set -euxo pipefail
+            yum install -y yum-utils
+            CUDA_REPO="https://developer.download.nvidia.com/compute/cuda/repos/rhel7/x86_64/cuda-rhel7.repo"
+            yum-config-manager --add-repo "${CUDA_REPO}"
+            yum clean all
+            yum install -y cuda-toolkit-11-8 cuda-compiler-11-8 cuda-libraries-devel-11-8
+            /usr/local/cuda-11.8/bin/nvcc --version
+          CIBW_ENVIRONMENT_LINUX: |
+            CMAKE_ARGS="-DUSE_CUDA=ON"
+            PATH="$PATH:/usr/local/cuda-11.8/bin"
+            CMAKE_PREFIX_PATH="/usr/local/cuda-11.8:${CMAKE_PREFIX_PATH:-}"
+            LD_LIBRARY_PATH="/usr/local/cuda-11.8/lib64:${LD_LIBRARY_PATH:-}"
+          CIBW_BUILD: "cp3{8,9,10,11,12}-manylinux_x86_64" 
+          CIBW_ARCHS_LINUX: x86_64
 
       - name: Publish Package to Test PyPI
         uses: pypa/gh-action-pypi-publish@release/v1
