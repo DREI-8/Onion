@@ -9,6 +9,10 @@ void elementwise_mul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, fl
 void assign_tensor_cpu(const Tensor* tensor, float* result_data);
 void transpose_2d_cpu(const Tensor* tensor, float* result_data);
 void transpose_3d_cpu(const Tensor* tensor, float* result_data);
+void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
+void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
+void sum_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
+void mean_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
 
 
 #endif // CPU_H
