@@ -59,7 +59,7 @@ try:
 except Exception as e:
     print(f"\nErreur lors du transpose: {e}")
     
-# Test max and min methods
+# Test max, min and sum methods
 try:
     data_max_min = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
     tensor_max_min = o.Tensor(data_max_min)
@@ -73,6 +73,11 @@ try:
     # Test min
     min_value = tensor_max_min.min(axis=-1, keepdims=False)
     print(f"\nValeur minimale le long de l'axe: {min_value}")
+    
+    # Test sum
+    sum_value = tensor_max_min.sum(axis=0, keepdims=True)
+    print(f"\nSomme le long de l'axe: {sum_value}")
+    
 except Exception as e:
     print(f"\nErreur lors du max/min: {e}")
     
