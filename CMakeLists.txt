@@ -155,9 +155,6 @@ if(BUILD_PYTHON_BINDINGS)
     
     # Install the Python module
     install(TARGETS onion onion_cpp
-            RUNTIME DESTINATION "${Python_SITEARCH}/onion"
-            LIBRARY DESTINATION "${Python_SITEARCH}/onion")
-
-    install(FILES "${CMAKE_CURRENT_SOURCE_DIR}/onion/__init__.py"
-            DESTINATION "${Python_SITEARCH}/onion")
+            RUNTIME DESTINATION "${Python_SITEARCH}"
+            LIBRARY DESTINATION "${Python_SITEARCH}")
 endif()
