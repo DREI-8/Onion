@@ -75,11 +75,11 @@ try:
     print(f"\nValeur minimale le long de l'axe: {min_value}")
     
     # Test sum
-    sum_value = tensor_max_min.sum(axis=0, keepdims=True)
+    sum_value = tensor_max_min.sum(axis=1, keepdims=False)
     print(f"\nSomme le long de l'axe: {sum_value}")
     
     # Test mean
-    mean_value = tensor_max_min.mean(axis=0, keepdims=True)
+    mean_value = tensor_max_min.mean(axis=1, keepdims=False)
     print(f"\nMoyenne le long de l'axe: {mean_value}")
     
 except Exception as e:
