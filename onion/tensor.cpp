@@ -310,6 +310,64 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
     }
 }
 
+std::shared_ptr<Tensor> Tensor::mean(int axis, bool keepdims) const {
+    if (!is_contiguous) {
+        return to_contiguous().mean(axis, keepdims);
+    }
+
+    std::vector<int> out_shape;
+    int out_ndim = 0;
+
+    if (axis == -1) {
+        if (keepdims) {
+            out_shape.resize(this->ndim, 1);
+            out_ndim = this->ndim;
+        } else {
+            out_shape.push_back(1);
+            out_ndim = 1;
+        }
+    } else {
+        if (axis < 0 || axis >= this->ndim) {
+            throw std::runtime_error("Axis out of bounds in mean");
+        }
+        if (keepdims) {
+            for (int i = 0; i < this->ndim; i++) {
+                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
+            }
+            out_ndim = this->ndim;
+        } else {
+            for (int i = 0; i < this->ndim; i++) {
+                if (i != axis) {
+                    out_shape.push_back(this->shape.get()[i]);
+                }
+            }
+            out_ndim = this->ndim - 1;
+        }
+    }
+
+    int out_size = 1;
+    for (int dim : out_shape) {
+        out_size *= dim;
+    }
+
+    if(this->is_cuda()) {
+        // CUDA Implementation - not implemented yet
+        throw std::runtime_error("CUDA mean not implemented");
+    }
+    else {
+        float* result_data = new float[out_size];
+        int len = out_shape.size();
+        int* shape_arr = new int[len];
+        for (int i = 0; i < len; i++) {
+            shape_arr[i] = out_shape[i];
+        }
+        mean_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
+        delete[] shape_arr;
+
+        return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
+    }
+}
+
 Tensor Tensor::operator+(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");

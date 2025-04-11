@@ -25,6 +25,7 @@ class Tensor {
         std::shared_ptr<Tensor> max(int axis, bool keepdims) const;
         std::shared_ptr<Tensor> min(int axis, bool keepdims) const;
         std::shared_ptr<Tensor> sum(int axis, bool keepdims) const;
+        std::shared_ptr<Tensor> mean(int axis, bool keepdims) const;
 
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;

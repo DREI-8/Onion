@@ -197,3 +197,53 @@ void sum_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
         }
     }
 }
+
+void mean_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
+    if (axis == -1) {
+        float mean = 0.0;
+        for (int i = 0; i < tensor->size; i++) {
+            mean += tensor->data[i];
+        }
+        result_data[0] = mean / tensor->size;
+    } 
+    else {
+        for (int i = 0; i < out_size; i++) {
+            std::vector<int> out_idx;
+            if(out_ndim == tensor->ndim) { // If keepdims is true
+                out_idx.resize(tensor->ndim - 1, 0);
+                int tmp = i;
+                for (int j = tensor->ndim - 2; j >=0; j--) {
+                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
+                    tmp /= result_shape[j < axis ? j : j + 1];
+                }
+            } else { // If keepdims is false
+                out_idx.resize(out_ndim, 0);
+                int tmp = i;
+                for (int j = out_ndim - 1; j >=0; j--) {
+                    out_idx[j] = tmp % result_shape[j];
+                    tmp /= result_shape[j];
+                }
+            }
+
+            float mean = 0.0;
+            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
+                std::vector<int> full_idx;
+                full_idx.resize(tensor->ndim, 0);
+                int out_d = 0;
+                for (int j = 0; j < tensor->ndim; j++) {
+                    if (j == axis) {
+                        full_idx[j] = i;
+                    } else {
+                        full_idx[j] = out_idx[out_d++];
+                    }
+                }
+                int input_index = 0;
+                for (int j = 0; j < tensor->ndim; j++) {
+                    input_index += full_idx[j] * tensor->strides.get()[j];
+                }
+                mean += tensor->data[input_index];
+            }
+            result_data[i] = mean / tensor->shape.get()[axis];
+        }
+    }
+}
