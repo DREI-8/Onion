@@ -73,6 +73,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("transpose", &Tensor::transpose, "Transpose the tensor")
 		.def("max", &Tensor::max, py::arg("axis"), py::arg("keepdims"), "Get the maximum value along an axis")
 		.def("min", &Tensor::min, py::arg("axis"), py::arg("keepdims"), "Get the minimum value along an axis")
+		.def("sum", &Tensor::sum, py::arg("axis"), py::arg("keepdims"), "Get the sum along an axis")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
 		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
