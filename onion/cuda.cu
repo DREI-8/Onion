@@ -178,6 +178,73 @@ Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
     return result;
 }
 
+__global__ void transpose_2d_kernel(const float* input, float* output, int rows, int cols) {
+    int x = blockIdx.x * blockDim.x + threadIdx.x;
+    int y = blockIdx.y * blockDim.y + threadIdx.y;
+    if (x < cols && y < rows) {
+        output[x * rows + y] = input[y * cols + x];
+    }
+}
+
+__global__ void transpose_3d_kernel(const float* input, float* output, int batch, int rows, int cols) {
+    int i = blockIdx.z;
+    int j = blockIdx.y * blockDim.y + threadIdx.y;
+    int k = blockIdx.x * blockDim.x + threadIdx.x;
+
+    if (k < cols && j < rows && i < batch) {
+        int input_index = i * rows * cols + j * cols + k;
+        int output_index = k * rows * batch + j * batch + i;
+        
+        output[output_index] = input[input_index];
+    }
+}
+
+std::shared_ptr<Tensor> transpose_tensor_cuda(const Tensor& tensor) {
+    std::vector<int> new_shape(tensor.ndim);
+    for (int i = 0; i < tensor.ndim; i++) {
+        new_shape[i] = tensor.shape.get()[tensor.ndim - 1 - i];
+    }
+
+    float* d_result;
+    cudaMalloc(&d_result, tensor.size * sizeof(float));
+
+    dim3 block(16, 16);
+    if (tensor.ndim == 1) {
+        // 1D: Direct copy
+        cudaMemcpy(d_result, tensor.data.get(), tensor.size * sizeof(float), cudaMemcpyDeviceToDevice);
+    } else if (tensor.ndim == 2) {
+        int rows = tensor.shape[0], cols = tensor.shape[1];
+        dim3 grid((cols + block.x - 1)/block.x, (rows + block.y - 1)/block.y);
+        transpose_2d_kernel<<<grid, block>>>(tensor.data.get(), d_result, rows, cols);
+    } else if (tensor.ndim == 3) {
+        int batch = tensor.shape[0], rows = tensor.shape[1], cols = tensor.shape[2];
+        dim3 grid(
+            (cols + block.x - 1) / block.x,   // Columns become first dimension
+            (rows + block.y - 1) / block.y,   // Rows remain second
+            batch                             // Batch becomes third
+        );
+        transpose_3d_kernel<<<grid, block>>>(tensor.data.get(), d_result, batch, rows, cols);
+    } else {
+        cudaFree(d_result);
+        throw std::runtime_error("Unsupported dimension for CUDA transpose");
+    }
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        cudaFree(d_result);
+        throw std::runtime_error("CUDA error: " + std::string(cudaGetErrorString(err)));
+    }
+
+    cudaDeviceSynchronize();
+
+    int* shape_copy = new int[tensor.ndim];
+    memcpy(shape_copy, new_shape.data(), tensor.ndim * sizeof(int));
+    auto deleter = [](float* p) { cudaFree(p); };
+    auto result = std::make_shared<Tensor>(std::shared_ptr<float[]>(d_result, deleter), shape_copy, tensor.ndim);
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    return result;
+}
+
 #else
 
 bool is_cuda_available() {

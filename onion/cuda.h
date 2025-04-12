@@ -10,5 +10,6 @@ void to_device(Tensor* tensor, const char* target_device);
 Tensor add_tensor_cuda(const Tensor& a, const Tensor& b);
 Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b);
 Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b);
+std::shared_ptr<Tensor> transpose_tensor_cuda(const Tensor& tensor);
 
 #endif // CUDA_H
