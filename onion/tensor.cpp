@@ -145,11 +145,12 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
 
     if (axis == -1) {
         if (keepdims) {
-            out_shape.resize(this->ndim, 1);
-            out_ndim = this->ndim;
+            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
+            for (int i = 0; i < this->ndim; i++) {
+                out_shape[i] = 1;
+            }
         } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+            out_shape.clear();
         }
     } else {
         if (axis < 0 || axis >= this->ndim) {
@@ -202,11 +203,12 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
 
     if (axis == -1) {
         if (keepdims) {
-            out_shape.resize(this->ndim, 1);
-            out_ndim = this->ndim;
+            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
+            for (int i = 0; i < this->ndim; i++) {
+                out_shape[i] = 1;
+            }
         } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+            out_shape.clear();
         }
     } else {
         if (axis < 0 || axis >= this->ndim) {
@@ -259,11 +261,12 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
 
     if (axis == -1) {
         if (keepdims) {
-            out_shape.resize(this->ndim, 1);
-            out_ndim = this->ndim;
+            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
+            for (int i = 0; i < this->ndim; i++) {
+                out_shape[i] = 1;
+            }
         } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+            out_shape.clear();
         }
     } else {
         if (axis < 0 || axis >= this->ndim) {
