@@ -396,6 +396,56 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
 
     return result;
 }
+
+__global__ void global_min_kernel(const float* input, float* output, int size) {
+    extern __shared__ float shared[];
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + tid;
+    shared[tid] = (i < size) ? input[i] : INFINITY;
+    __syncthreads();
+
+    for (int s = blockDim.x/2; s > 0; s >>= 1) {
+        if (tid < s) shared[tid] = fminf(shared[tid], shared[tid + s]);
+        __syncthreads();
+    }
+    if (tid == 0) output[blockIdx.x] = shared[0];
+}
+
+__global__ void axis_min_kernel(
+    const float* input, float* output, 
+    const int* shape, const int* strides, 
+    int axis, int out_size, int reduction_size, int ndim
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= out_size) return;
+
+    int remaining = idx;
+    int input_offset = 0;
+    
+    int output_dims[8];
+    int dim_idx = 0;
+    
+    for (int i = 0; i < ndim; i++) {
+        if (i == axis) continue;
+        output_dims[dim_idx++] = i;
+    }
+
+    for (int d = dim_idx - 1; d >= 0; d--) {
+        int orig_dim = output_dims[d];
+        int dim_size = shape[orig_dim];
+        int coord = remaining % dim_size;
+        remaining /= dim_size;
+        input_offset += coord * strides[orig_dim];
+    }
+
+    float min_val = INFINITY;
+    for (int k = 0; k < reduction_size; k++) {
+        int element_offset = input_offset + k * strides[axis];
+        min_val = fminf(min_val, input[element_offset]);
+    }
+    output[idx] = min_val;
+}
+
 #else
 
 bool is_cuda_available() {
