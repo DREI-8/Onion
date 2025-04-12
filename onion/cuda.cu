@@ -582,4 +582,19 @@ Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
     throw std::runtime_error("CUDA not available");
 }
 
+std::shared_ptr<Tensor> transpose_tensor_cuda(const Tensor& tensor) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
 #endif // __CUDACC__
