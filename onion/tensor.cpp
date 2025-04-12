@@ -233,8 +233,7 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        // CUDA Implementation - not implemented yet
-        throw std::runtime_error("CUDA min not implemented");
+        return min_tensor_cuda(*this, axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
