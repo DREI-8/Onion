@@ -544,6 +544,154 @@ std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool kee
     return result;
 }
 
+__global__ void global_sum_kernel(const float* input, float* output, int size) {
+    extern __shared__ float shared[];
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + tid;
+    shared[tid] = (i < size) ? input[i] : 0.0f;
+    __syncthreads();
+
+    for (int s = blockDim.x/2; s > 0; s >>= 1) {
+        if (tid < s) shared[tid] += shared[tid + s];
+        __syncthreads();
+    }
+    if (tid == 0) output[blockIdx.x] = shared[0];
+}
+
+__global__ void axis_sum_kernel(
+    const float* input, float* output, 
+    const int* shape, const int* strides, 
+    int axis, int out_size, int reduction_size, int ndim
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= out_size) return;
+
+    int remaining = idx;
+    int input_offset = 0;
+    
+    int output_dims[8];
+    int dim_idx = 0;
+    
+    for (int i = 0; i < ndim; i++) {
+        if (i == axis) continue;
+        output_dims[dim_idx++] = i;
+    }
+
+    for (int d = dim_idx - 1; d >= 0; d--) {
+        int orig_dim = output_dims[d];
+        int dim_size = shape[orig_dim];
+        int coord = remaining % dim_size;
+        remaining /= dim_size;
+        input_offset += coord * strides[orig_dim];
+    }
+
+    float sum = 0.0f;
+    for (int k = 0; k < reduction_size; k++) {
+        int element_offset = input_offset + k * strides[axis];
+        sum += input[element_offset];
+    }
+    output[idx] = sum;
+}
+
+std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    std::vector<int> out_shape;
+    int out_ndim = 0;
+    const int* shape_ptr = tensor.shape.get();
+    
+    if (axis == -1) {
+        if (keepdims) {
+            out_shape.resize(tensor.ndim, 1);
+            out_ndim = tensor.ndim;
+        } else {
+            out_shape.push_back(1);
+            out_ndim = 1;
+        }
+    } else {
+        if (keepdims) {
+            out_shape.reserve(tensor.ndim);
+            for (int i = 0; i < tensor.ndim; i++) {
+                out_shape.push_back(i == axis ? 1 : shape_ptr[i]);
+            }
+            out_ndim = tensor.ndim;
+        } else {
+            out_shape.reserve(tensor.ndim - 1);
+            for (int i = 0; i < tensor.ndim; i++) {
+                if (i != axis) out_shape.push_back(shape_ptr[i]);
+            }
+            out_ndim = tensor.ndim - 1;
+        }
+    }
+
+    int out_size = 1;
+    for (int dim : out_shape) out_size *= dim;
+
+    float* d_result;
+    cudaMalloc(&d_result, out_size * sizeof(float));
+
+    if (axis == -1) {
+        const int block_size = 256;
+        const int grid_size = (tensor.size + block_size - 1) / block_size;
+        
+        global_sum_kernel<<<grid_size, block_size, block_size * sizeof(float)>>>(
+            tensor.data.get(), d_result, tensor.size
+        );
+        
+        if (grid_size > 1) {
+            float* d_intermediate;
+            cudaMalloc(&d_intermediate, grid_size * sizeof(float));
+            cudaMemcpy(d_intermediate, d_result, grid_size * sizeof(float), cudaMemcpyDeviceToDevice);
+            
+            global_sum_kernel<<<1, block_size, block_size * sizeof(float)>>>(
+                d_intermediate, d_result, grid_size
+            );
+            cudaFree(d_intermediate);
+        }
+    } else if (axis >= 0 && axis < tensor.ndim) {
+        const int block_size = 256;
+        const int grid_size = (out_size + block_size - 1) / block_size;
+        
+        int* d_shape, *d_strides;
+        cudaMalloc(&d_shape, tensor.ndim * sizeof(int));
+        cudaMalloc(&d_strides, tensor.ndim * sizeof(int));
+        cudaMemcpy(d_shape, tensor.shape.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_strides, tensor.strides.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
+    
+        axis_sum_kernel<<<grid_size, block_size>>>(
+            tensor.data.get(),
+            d_result,
+            d_shape,
+            d_strides,
+            axis,
+            out_size,
+            tensor.shape.get()[axis],
+            tensor.ndim
+        );
+    
+        cudaFree(d_shape);
+        cudaFree(d_strides);
+    }
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        cudaFree(d_result);
+        throw std::runtime_error("CUDA error: " + std::string(cudaGetErrorString(err)));
+    }
+
+    int* shape_copy = new int[out_ndim];
+    std::copy(out_shape.begin(), out_shape.end(), shape_copy);
+    
+    auto deleter = [](float* p) { cudaFree(p); };
+    auto result = std::make_shared<Tensor>(
+        std::shared_ptr<float[]>(d_result, deleter),
+        shape_copy,
+        out_ndim
+    );
+
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+
+    return result;
+}
+
 #else
 
 bool is_cuda_available() {
@@ -593,6 +741,11 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
 }
 
 std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }

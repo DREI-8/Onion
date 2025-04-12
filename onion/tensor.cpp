@@ -290,8 +290,7 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        // CUDA Implementation - not implemented yet
-        throw std::runtime_error("CUDA sum not implemented");
+        return sum_tensor_cuda(*this, axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
