@@ -270,22 +270,20 @@ __global__ void axis_max_kernel(
     int remaining = idx;
     int input_offset = 0;
     
+    int output_dims[8];
+    int dim_idx = 0;
+    
     for (int i = 0; i < ndim; i++) {
         if (i == axis) continue;
-        
-        int current_dim = (i < axis) ? i : i - 1;
-        int dim_size = shape[i];
-        int stride = strides[i];
-        
-        if (i > axis) {
-            dim_size = shape[i];
-            stride = strides[i];
-        }
-        
+        output_dims[dim_idx++] = i;
+    }
+
+    for (int d = dim_idx - 1; d >= 0; d--) {
+        int orig_dim = output_dims[d];
+        int dim_size = shape[orig_dim];
         int coord = remaining % dim_size;
         remaining /= dim_size;
-        
-        input_offset += coord * stride;
+        input_offset += coord * strides[orig_dim];
     }
 
     float max_val = -INFINITY;
