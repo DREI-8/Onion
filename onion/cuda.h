@@ -14,5 +14,6 @@ std::shared_ptr<Tensor> transpose_tensor_cuda(const Tensor& tensor);
 std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
 std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
 std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
+std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
 
 #endif // CUDA_H

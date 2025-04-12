@@ -692,6 +692,30 @@ std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool kee
     return result;
 }
 
+__global__ void scalar_div_kernel(float* data, int size, float divisor) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx < size) {
+        data[idx] /= divisor;
+    }
+}
+
+std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    auto sum_tensor = sum_tensor_cuda(tensor, axis, keepdims);
+    int count = (axis == -1) ? tensor.size : tensor.shape.get()[axis];
+    
+    int block_size = 256;
+    int grid_size = (sum_tensor->size + block_size - 1) / block_size;
+    scalar_div_kernel<<<grid_size, block_size>>>(sum_tensor->data.get(), sum_tensor->size, static_cast<float>(count));
+    
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        throw std::runtime_error("CUDA error during mean division: " + std::string(cudaGetErrorString(err)));
+    }
+    cudaDeviceSynchronize();
+
+    return sum_tensor;
+}
+
 #else
 
 bool is_cuda_available() {
@@ -746,6 +770,11 @@ std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool kee
 }
 
 std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
