@@ -71,6 +71,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("get_item", &Tensor::get_item, "Get an element from the tensor")
 		.def("reshape", &Tensor::reshape, "Reshape the tensor")
 		.def("transpose", &Tensor::transpose, "Transpose the tensor")
+		.def_property_readonly("T", &Tensor::transpose, "Alias for transpose()")
 		.def("max", &Tensor::max, py::arg("axis"), py::arg("keepdims"), "Get the maximum value along an axis")
 		.def("min", &Tensor::min, py::arg("axis"), py::arg("keepdims"), "Get the minimum value along an axis")
 		.def("sum", &Tensor::sum, py::arg("axis"), py::arg("keepdims"), "Get the sum along an axis")
