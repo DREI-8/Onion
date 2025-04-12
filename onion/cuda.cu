@@ -267,23 +267,31 @@ __global__ void axis_max_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= out_size) return;
 
-    int tmp = idx;
-    int input_idx = 0;
-    for (int i = 0; i < axis; i++) {
-        int dim = tmp % shape[i];
-        input_idx += dim * strides[i];
-        tmp /= shape[i];
-    }
-    tmp /= shape[axis]; // Skip reduction axis
-    for (int i = axis + 1; i < ndim; i++) {
-        int dim = tmp % shape[i];
-        input_idx += dim * strides[i];
-        tmp /= shape[i];
+    int remaining = idx;
+    int input_offset = 0;
+    
+    for (int i = 0; i < ndim; i++) {
+        if (i == axis) continue;
+        
+        int current_dim = (i < axis) ? i : i - 1;
+        int dim_size = shape[i];
+        int stride = strides[i];
+        
+        if (i > axis) {
+            dim_size = shape[i];
+            stride = strides[i];
+        }
+        
+        int coord = remaining % dim_size;
+        remaining /= dim_size;
+        
+        input_offset += coord * stride;
     }
 
     float max_val = -INFINITY;
     for (int k = 0; k < reduction_size; k++) {
-        max_val = fmaxf(max_val, input[input_idx + k * strides[axis]]);
+        int element_offset = input_offset + k * strides[axis];
+        max_val = fmaxf(max_val, input[element_offset]);
     }
     output[idx] = max_val;
 }
@@ -344,7 +352,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
             cudaFree(d_result);
             d_result = d_final;
         }
-    } else {
+    } if (axis >= 0 && axis < tensor.ndim) {
         const int block_size = 256;
         const int grid_size = (out_size + block_size - 1) / block_size;
         
@@ -353,7 +361,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
         cudaMalloc(&d_strides, tensor.ndim * sizeof(int));
         cudaMemcpy(d_shape, tensor.shape.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
         cudaMemcpy(d_strides, tensor.strides.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
-
+    
         axis_max_kernel<<<grid_size, block_size>>>(
             tensor.data.get(),
             d_result,
@@ -364,7 +372,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
             tensor.shape.get()[axis],
             tensor.ndim
         );
-
+    
         cudaFree(d_shape);
         cudaFree(d_strides);
     }
