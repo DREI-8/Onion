@@ -176,8 +176,7 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        // CUDA Implementation - not implemented yet
-        throw std::runtime_error("CUDA max not implemented");
+        return max_tensor_cuda(*this, axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];

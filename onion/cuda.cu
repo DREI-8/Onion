@@ -245,6 +245,151 @@ std::shared_ptr<Tensor> transpose_tensor_cuda(const Tensor& tensor) {
     return result;
 }
 
+__global__ void global_max_kernel(const float* input, float* output, int size) {
+    extern __shared__ float shared[];
+    int tid = threadIdx.x;
+    int i = blockIdx.x * blockDim.x + tid;
+    shared[tid] = (i < size) ? input[i] : -INFINITY;
+    __syncthreads();
+
+    for (int s = blockDim.x/2; s > 0; s >>= 1) {
+        if (tid < s) shared[tid] = fmaxf(shared[tid], shared[tid + s]);
+        __syncthreads();
+    }
+    if (tid == 0) output[blockIdx.x] = shared[0];
+}
+
+__global__ void axis_max_kernel(
+    const float* input, float* output, 
+    const int* shape, const int* strides, 
+    int axis, int out_size, int reduction_size, int ndim
+) {
+    int idx = blockIdx.x * blockDim.x + threadIdx.x;
+    if (idx >= out_size) return;
+
+    int tmp = idx;
+    int input_idx = 0;
+    for (int i = 0; i < axis; i++) {
+        int dim = tmp % shape[i];
+        input_idx += dim * strides[i];
+        tmp /= shape[i];
+    }
+    tmp /= shape[axis]; // Skip reduction axis
+    for (int i = axis + 1; i < ndim; i++) {
+        int dim = tmp % shape[i];
+        input_idx += dim * strides[i];
+        tmp /= shape[i];
+    }
+
+    float max_val = -INFINITY;
+    for (int k = 0; k < reduction_size; k++) {
+        max_val = fmaxf(max_val, input[input_idx + k * strides[axis]]);
+    }
+    output[idx] = max_val;
+}
+
+std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+    std::vector<int> out_shape;
+    int out_ndim = 0;
+    const int* shape_ptr = tensor.shape.get();
+    
+    if (axis == -1) {
+        // Global max
+        if (keepdims) {
+            out_shape.resize(tensor.ndim, 1);
+            out_ndim = tensor.ndim;
+        } else {
+            out_shape.push_back(1);
+            out_ndim = 1;
+        }
+    } else {
+        // Axis-specific max
+        if (keepdims) {
+            out_shape.reserve(tensor.ndim);
+            for (int i = 0; i < tensor.ndim; i++) {
+                out_shape.push_back(i == axis ? 1 : shape_ptr[i]);
+            }
+            out_ndim = tensor.ndim;
+        } else {
+            out_shape.reserve(tensor.ndim - 1);
+            for (int i = 0; i < tensor.ndim; i++) {
+                if (i != axis) out_shape.push_back(shape_ptr[i]);
+            }
+            out_ndim = tensor.ndim - 1;
+        }
+    }
+
+    int out_size = 1;
+    for (int dim : out_shape) out_size *= dim;
+
+    float* d_result;
+    cudaMalloc(&d_result, out_size * sizeof(float));
+
+    if (axis == -1) {
+        const int block_size = 256;
+        const int grid_size = (tensor.size + block_size - 1) / block_size;
+        
+        // First reduction stage
+        global_max_kernel<<<grid_size, block_size, block_size * sizeof(float)>>>(
+            tensor.data.get(), d_result, tensor.size
+        );
+        
+        // Second reduction stage if needed
+        if (grid_size > 1) {
+            float* d_final;
+            cudaMalloc(&d_final, sizeof(float));
+            global_max_kernel<<<1, block_size, block_size * sizeof(float)>>>(
+                d_result, d_final, grid_size
+            );
+            cudaFree(d_result);
+            d_result = d_final;
+        }
+    } else {
+        const int block_size = 256;
+        const int grid_size = (out_size + block_size - 1) / block_size;
+        
+        int* d_shape, *d_strides;
+        cudaMalloc(&d_shape, tensor.ndim * sizeof(int));
+        cudaMalloc(&d_strides, tensor.ndim * sizeof(int));
+        cudaMemcpy(d_shape, tensor.shape.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_strides, tensor.strides.get(), tensor.ndim * sizeof(int), cudaMemcpyHostToDevice);
+
+        axis_max_kernel<<<grid_size, block_size>>>(
+            tensor.data.get(),
+            d_result,
+            d_shape,
+            d_strides,
+            axis,
+            out_size,
+            tensor.shape.get()[axis],
+            tensor.ndim
+        );
+
+        cudaFree(d_shape);
+        cudaFree(d_strides);
+    }
+
+    cudaError_t err = cudaGetLastError();
+    if (err != cudaSuccess) {
+        cudaFree(d_result);
+        throw std::runtime_error("CUDA error: " + std::string(cudaGetErrorString(err)));
+    }
+
+    int* shape_copy = new int[out_ndim];
+    std::copy(out_shape.begin(), out_shape.end(), shape_copy);
+    
+    auto deleter = [](float* p) { cudaFree(p); };
+    auto result = std::make_shared<Tensor>(
+        std::shared_ptr<float[]>(d_result, deleter),
+        shape_copy,
+        out_ndim
+    );
+
+    const char* device_str = "cuda";
+    result->device = std::shared_ptr<char[]>(strdup(device_str), [](char* p) { free(p); });
+
+    return result;
+}
 #else
 
 bool is_cuda_available() {
