@@ -87,6 +87,9 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("__array__", [](const Tensor& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
+		.def("numpy", [](const Tensor& tensor) {
+            return tensor_to_numpy(tensor);
+        }, "Convert tensor to numpy array")
 		.def("__repr__", [](const Tensor& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";
