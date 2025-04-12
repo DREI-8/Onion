@@ -114,8 +114,7 @@ std::shared_ptr<Tensor> Tensor::transpose() const {
     }
 
     if (this->is_cuda()) {
-        // Cuda Transpose - not implemented yet
-        throw std::runtime_error("CUDA transpose not implemented");
+        return transpose_tensor_cuda(*this);
     }
     else {
         float* result_data = new float[this->size];
