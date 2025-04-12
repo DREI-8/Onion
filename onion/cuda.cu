@@ -267,23 +267,25 @@ __global__ void axis_max_kernel(
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
     if (idx >= out_size) return;
 
-    int remaining = idx;
-    int input_offset = 0;
+    int out_indices[8] = {0};
+    int temp_idx = idx;
     
-    int output_dims[8];
-    int dim_idx = 0;
-    
+    int out_dims[8];
+    int out_dim_count = 0;
     for (int i = 0; i < ndim; i++) {
-        if (i == axis) continue;
-        output_dims[dim_idx++] = i;
+        if (i != axis) out_dims[out_dim_count++] = shape[i];
     }
 
-    for (int d = dim_idx - 1; d >= 0; d--) {
-        int orig_dim = output_dims[d];
-        int dim_size = shape[orig_dim];
-        int coord = remaining % dim_size;
-        remaining /= dim_size;
-        input_offset += coord * strides[orig_dim];
+    for (int d = out_dim_count - 1; d >= 0; d--) {
+        out_indices[d] = temp_idx % out_dims[d];
+        temp_idx /= out_dims[d];
+    }
+
+    int input_offset = 0;
+    int out_dim_idx = 0;
+    for (int d = 0; d < ndim; d++) {
+        if (d == axis) continue;
+        input_offset += out_indices[out_dim_idx++] * strides[d];
     }
 
     float max_val = -INFINITY;
@@ -291,6 +293,7 @@ __global__ void axis_max_kernel(
         int element_offset = input_offset + k * strides[axis];
         max_val = fmaxf(max_val, input[element_offset]);
     }
+    
     output[idx] = max_val;
 }
 
