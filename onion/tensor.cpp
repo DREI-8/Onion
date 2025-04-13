@@ -532,8 +532,10 @@ Tensor Tensor::to_contiguous() const {
     return contiguous_tensor;
 }
 
-void Tensor::to(const char* device_name) {
-    to_device(this, device_name);
+Tensor Tensor::to(const char* device_name) const {
+    Tensor copy(*this);
+    to_device(&copy, device_name);
+    return copy;
 }
 
 bool Tensor::is_cuda() const {

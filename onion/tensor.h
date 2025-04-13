@@ -34,7 +34,7 @@ class Tensor {
         bool contiguous() const;
         Tensor to_contiguous() const;
 
-        void to(const char* device_name);
+        Tensor to(const char* device_name) const;
         bool is_cuda() const;
 };
 
