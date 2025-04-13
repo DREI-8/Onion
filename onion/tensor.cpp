@@ -140,44 +140,53 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
         return to_contiguous().max(axis, keepdims);
     }
 
+    int adjusted_axis = axis;
+    bool global_reduction = false;
+    if (axis == -999) {
+        global_reduction = true;
+        adjusted_axis = -1;
+    } else {
+        if (adjusted_axis < 0) adjusted_axis += ndim;
+        if (adjusted_axis < 0 || adjusted_axis >= ndim)
+            throw std::runtime_error("Axis out of bounds in max");
+    }
+
     std::vector<int> out_shape;
     int out_ndim = 0;
 
-    if (axis == -1) {
+    if (global_reduction) {
         if (keepdims) {
-            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape[i] = 1;
-            }
+            out_shape.resize(ndim, 1);
+            out_ndim = ndim;
         } else {
             out_shape.clear();
+            out_ndim = 0;
         }
     } else {
-        if (axis < 0 || axis >= this->ndim) {
-            throw std::runtime_error("Axis out of bounds in max");
-        }
         if (keepdims) {
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
+            out_shape.reserve(ndim);
+            for (int i = 0; i < ndim; ++i) {
+                out_shape.push_back((i == adjusted_axis) ? 1 : shape[i]);
             }
-            out_ndim = this->ndim;
+            out_ndim = ndim;
         } else {
-            for (int i = 0; i < this->ndim; i++) {
-                if (i != axis) {
-                    out_shape.push_back(this->shape.get()[i]);
+            out_shape.reserve(ndim - 1);
+            for (int i = 0; i < ndim; ++i) {
+                if (i != adjusted_axis) {
+                    out_shape.push_back(shape[i]);
                 }
             }
-            out_ndim = this->ndim - 1;
-        }
+            out_ndim = ndim - 1;
+        }   
     }
-
+    
     int out_size = 1;
     for (int dim : out_shape) {
         out_size *= dim;
     }
 
     if(this->is_cuda()) {
-        return max_tensor_cuda(*this, axis, keepdims);
+        return max_tensor_cuda(*this, adjusted_axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
@@ -186,7 +195,7 @@ std::shared_ptr<Tensor> Tensor::max(int axis, bool keepdims) const {
         for (int i = 0; i < len; i++) {
             shape_arr[i] = out_shape[i];
         }
-        max_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
+        max_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
         return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
@@ -198,35 +207,44 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
         return to_contiguous().min(axis, keepdims);
     }
 
+    int adjusted_axis = axis;
+    bool global_reduction = false;
+    if (axis == -999) {
+        global_reduction = true;
+        adjusted_axis = -1;
+    } else {
+        if (adjusted_axis < 0) adjusted_axis += ndim;
+        if (adjusted_axis < 0 || adjusted_axis >= ndim)
+            throw std::runtime_error("Axis out of bounds in max");
+    }
+
     std::vector<int> out_shape;
     int out_ndim = 0;
-
-    if (axis == -1) {
+    
+    if (global_reduction) {
         if (keepdims) {
-            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape[i] = 1;
-            }
+            out_shape.resize(ndim, 1);
+            out_ndim = ndim;
         } else {
             out_shape.clear();
+            out_ndim = 0;
         }
     } else {
-        if (axis < 0 || axis >= this->ndim) {
-            throw std::runtime_error("Axis out of bounds in min");
-        }
         if (keepdims) {
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
+            out_shape.reserve(ndim);
+            for (int i = 0; i < ndim; ++i) {
+                out_shape.push_back((i == adjusted_axis) ? 1 : shape[i]);
             }
-            out_ndim = this->ndim;
+            out_ndim = ndim;
         } else {
-            for (int i = 0; i < this->ndim; i++) {
-                if (i != axis) {
-                    out_shape.push_back(this->shape.get()[i]);
+            out_shape.reserve(ndim - 1);
+            for (int i = 0; i < ndim; ++i) {
+                if (i != adjusted_axis) {
+                    out_shape.push_back(shape[i]);
                 }
             }
-            out_ndim = this->ndim - 1;
-        }
+            out_ndim = ndim - 1;
+        }   
     }
 
     int out_size = 1;
@@ -235,7 +253,7 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        return min_tensor_cuda(*this, axis, keepdims);
+        return min_tensor_cuda(*this, adjusted_axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
@@ -244,7 +262,7 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
         for (int i = 0; i < len; i++) {
             shape_arr[i] = out_shape[i];
         }
-        min_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
+        min_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
         return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
@@ -256,35 +274,44 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
         return to_contiguous().sum(axis, keepdims);
     }
 
+    int adjusted_axis = axis;
+    bool global_reduction = false;
+    if (axis == -999) {
+        global_reduction = true;
+        adjusted_axis = -1;
+    } else {
+        if (adjusted_axis < 0) adjusted_axis += ndim;
+        if (adjusted_axis < 0 || adjusted_axis >= ndim)
+            throw std::runtime_error("Axis out of bounds in max");
+    }
+
     std::vector<int> out_shape;
     int out_ndim = 0;
-
-    if (axis == -1) {
+    
+    if (global_reduction) {
         if (keepdims) {
-            out_shape = std::vector<int>(this->shape.get(), this->shape.get() + this->ndim);
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape[i] = 1;
-            }
+            out_shape.resize(ndim, 1);
+            out_ndim = ndim;
         } else {
             out_shape.clear();
+            out_ndim = 0;
         }
     } else {
-        if (axis < 0 || axis >= this->ndim) {
-            throw std::runtime_error("Axis out of bounds in sum");
-        }
         if (keepdims) {
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
+            out_shape.reserve(ndim);
+            for (int i = 0; i < ndim; ++i) {
+                out_shape.push_back((i == adjusted_axis) ? 1 : shape[i]);
             }
-            out_ndim = this->ndim;
+            out_ndim = ndim;
         } else {
-            for (int i = 0; i < this->ndim; i++) {
-                if (i != axis) {
-                    out_shape.push_back(this->shape.get()[i]);
+            out_shape.reserve(ndim - 1);
+            for (int i = 0; i < ndim; ++i) {
+                if (i != adjusted_axis) {
+                    out_shape.push_back(shape[i]);
                 }
             }
-            out_ndim = this->ndim - 1;
-        }
+            out_ndim = ndim - 1;
+        }   
     }
 
     int out_size = 1;
@@ -293,7 +320,7 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        return sum_tensor_cuda(*this, axis, keepdims);
+        return sum_tensor_cuda(*this, adjusted_axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
@@ -302,7 +329,7 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
         for (int i = 0; i < len; i++) {
             shape_arr[i] = out_shape[i];
         }
-        sum_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
+        sum_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
         return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
@@ -314,34 +341,44 @@ std::shared_ptr<Tensor> Tensor::mean(int axis, bool keepdims) const {
         return to_contiguous().mean(axis, keepdims);
     }
 
+    int adjusted_axis = axis;
+    bool global_reduction = false;
+    if (axis == -999) {
+        global_reduction = true;
+        adjusted_axis = -1;
+    } else {
+        if (adjusted_axis < 0) adjusted_axis += ndim;
+        if (adjusted_axis < 0 || adjusted_axis >= ndim)
+            throw std::runtime_error("Axis out of bounds in max");
+    }
+
     std::vector<int> out_shape;
     int out_ndim = 0;
-
-    if (axis == -1) {
+    
+    if (global_reduction) {
         if (keepdims) {
-            out_shape.resize(this->ndim, 1);
-            out_ndim = this->ndim;
+            out_shape.resize(ndim, 1);
+            out_ndim = ndim;
         } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+            out_shape.clear();
+            out_ndim = 0;
         }
     } else {
-        if (axis < 0 || axis >= this->ndim) {
-            throw std::runtime_error("Axis out of bounds in mean");
-        }
         if (keepdims) {
-            for (int i = 0; i < this->ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : this->shape.get()[i]);
+            out_shape.reserve(ndim);
+            for (int i = 0; i < ndim; ++i) {
+                out_shape.push_back((i == adjusted_axis) ? 1 : shape[i]);
             }
-            out_ndim = this->ndim;
+            out_ndim = ndim;
         } else {
-            for (int i = 0; i < this->ndim; i++) {
-                if (i != axis) {
-                    out_shape.push_back(this->shape.get()[i]);
+            out_shape.reserve(ndim - 1);
+            for (int i = 0; i < ndim; ++i) {
+                if (i != adjusted_axis) {
+                    out_shape.push_back(shape[i]);
                 }
             }
-            out_ndim = this->ndim - 1;
-        }
+            out_ndim = ndim - 1;
+        }   
     }
 
     int out_size = 1;
@@ -350,7 +387,7 @@ std::shared_ptr<Tensor> Tensor::mean(int axis, bool keepdims) const {
     }
 
     if(this->is_cuda()) {
-        return mean_tensor_cuda(*this, axis, keepdims);
+        return mean_tensor_cuda(*this, adjusted_axis, keepdims);
     }
     else {
         float* result_data = new float[out_size];
@@ -359,7 +396,7 @@ std::shared_ptr<Tensor> Tensor::mean(int axis, bool keepdims) const {
         for (int i = 0; i < len; i++) {
             shape_arr[i] = out_shape[i];
         }
-        mean_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, axis);
+        mean_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
         return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
@@ -371,33 +408,31 @@ Tensor Tensor::operator+(const Tensor& other) const {
         throw std::runtime_error("Tensors must be on the same device");
     }
 
-    if (this->size != other.size) {
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
+
+    if (this_contig.size != other_contig.size) {
         throw std::runtime_error("Tensors must have same size for addition");
     }
-
-    for (int i = 0; i < ndim; i++) {
-        if (this->shape[i] != other.shape[i]) {
+    for (int i = 0; i < this_contig.ndim; ++i) {
+        if (this_contig.shape[i] != other_contig.shape[i]) {
             throw std::runtime_error("Tensors must have same shape for addition");
         }
     }
 
-    if (this->ndim != other.ndim) {
-        throw std::runtime_error("Tensors must have same number of dimensions");
-    }
-
-    if (this->is_cuda()) {
-        return add_tensor_cuda(*this, other);
+    if (this_contig.is_cuda()) {
+        return add_tensor_cuda(this_contig, other_contig);
     } else {
-        float* result_data = new float[size];
-        add_tensor_cpu(this, &other, result_data);
+        float* result_data = new float[this_contig.size];
+        add_tensor_cpu(&this_contig, &other_contig, result_data);
 
-        int* shape_copy = new int[ndim];
-        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
 
-        Tensor tensor(result_data, shape_copy, ndim);
+        Tensor tensor(result_data, shape_copy, this_contig.ndim);
         tensor.is_contiguous = true;
-        return tensor;        
-    }  
+        return tensor;
+    }
 }
 
 Tensor Tensor::operator-(const Tensor& other) const {
@@ -405,21 +440,23 @@ Tensor Tensor::operator-(const Tensor& other) const {
         throw std::runtime_error("Tensors must be on the same device");
     }
 
-    if (this->size != other.size) {
-        throw std::runtime_error("Tensors must have same size for subtraction");
-    }
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
 
-    for (int i = 0; i < ndim; i++) {
-        if (this->shape[i] != other.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for subtraction");
+    if (this_contig.size != other_contig.size) {
+        throw std::runtime_error("Tensors must have same size for addition");
+    }
+    for (int i = 0; i < this_contig.ndim; ++i) {
+        if (this_contig.shape[i] != other_contig.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for addition");
         }
     }
 
-    if (this->is_cuda()) {
-        return sub_tensor_cuda(*this, other);
+    if (this_contig.is_cuda()) {
+        return sub_tensor_cuda(this_contig, other_contig);
     } else {
-        float* result_data = new float[size];
-        sub_tensor_cpu(this, &other, result_data);
+        float* result_data = new float[this_contig.size];
+        sub_tensor_cpu(&this_contig, &other_contig, result_data);
 
         int* shape_copy = new int[ndim];
         memcpy(shape_copy, shape.get(), ndim * sizeof(int));
@@ -435,22 +472,24 @@ Tensor Tensor::operator*(const Tensor& other) const {
         throw std::runtime_error("Tensors must be on the same device");
     }
 
-    if (this->size != other.size) {
-        throw std::runtime_error("Tensors must have same size for multiplication");
-    }
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
 
-    for (int i = 0; i < ndim; i++) {
-        if (this->shape[i] != other.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for multiplication");
+    if (this_contig.size != other_contig.size) {
+        throw std::runtime_error("Tensors must have same size for addition");
+    }
+    for (int i = 0; i < this_contig.ndim; ++i) {
+        if (this_contig.shape[i] != other_contig.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for addition");
         }
     }
 
-    if (this->is_cuda()) {
-        return mul_tensor_cuda(*this, other);
+    if (this_contig.is_cuda()) {
+        return mul_tensor_cuda(this_contig, other_contig);
     } else {
-        float* result_data = new float[size];
-        elementwise_mul_tensor_cpu(this, &other, result_data);
-
+        float* result_data = new float[this_contig.size];
+        elementwise_mul_tensor_cpu(&this_contig, &other_contig, result_data);
+        
         int* shape_copy = new int[ndim];
         memcpy(shape_copy, shape.get(), ndim * sizeof(int));
         

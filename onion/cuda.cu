@@ -39,7 +39,10 @@ __host__ void cpu_to_cuda(Tensor* tensor) {
 
     const char* device_str = "cuda";
     size_t str_len = strlen(device_str) + 1;
-    tensor->device = std::shared_ptr<char[]>(strdup(device_str), [](char* p) { free(p); });
+    tensor->device = std::shared_ptr<char[]>(
+        strdup(device_str),
+        [](char* p) { free(p); }
+    );
 }
 
 __host__ void cuda_to_cpu(Tensor* tensor) {
@@ -61,7 +64,10 @@ __host__ void cuda_to_cpu(Tensor* tensor) {
 
     const char* device_str = "cpu";
     size_t str_len = strlen(device_str) + 1;
-    tensor->device = std::shared_ptr<char[]>(strdup(device_str), [](char* p) { free(p); });
+    tensor->device = std::shared_ptr<char[]>(
+        strdup(device_str),
+        [](char* p) { free(p); }
+    );
 }
 
 void to_device(Tensor* tensor, const char* target_device) {
@@ -113,7 +119,7 @@ Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
     
     const char* device_str = "cuda";
     size_t str_len = strlen(device_str) + 1;
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { delete[] p; });
+    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     
     return result;
 }
@@ -145,7 +151,7 @@ Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
     std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
     
     Tensor result(shared_result, shape_copy, a.ndim);
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { delete[] p; });
+    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     
     return result;
 }
@@ -297,35 +303,23 @@ __global__ void axis_max_kernel(
     output[idx] = max_val;
 }
 
-std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int adjusted_axis, bool keepdims) {
     std::vector<int> out_shape;
     int out_ndim = 0;
     const int* shape_ptr = tensor.shape.get();
-    
-    if (axis == -1) {
-        // Global max
-        if (keepdims) {
-            out_shape.resize(tensor.ndim, 1);
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+
+    if (keepdims) {
+        for (int i = 0; i < tensor.ndim; i++) {
+            out_shape.push_back(i == adjusted_axis ? 1 : shape_ptr[i]);
         }
+        out_ndim = tensor.ndim;
     } else {
-        // Axis-specific max
-        if (keepdims) {
-            out_shape.reserve(tensor.ndim);
-            for (int i = 0; i < tensor.ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : shape_ptr[i]);
+        for (int i = 0; i < tensor.ndim; i++) {
+            if (i != adjusted_axis) {
+                out_shape.push_back(shape_ptr[i]);
             }
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.reserve(tensor.ndim - 1);
-            for (int i = 0; i < tensor.ndim; i++) {
-                if (i != axis) out_shape.push_back(shape_ptr[i]);
-            }
-            out_ndim = tensor.ndim - 1;
         }
+        out_ndim = tensor.ndim - 1;
     }
 
     int out_size = 1;
@@ -334,7 +328,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
     float* d_result;
     cudaMalloc(&d_result, out_size * sizeof(float));
 
-    if (axis == -1) {
+    if (adjusted_axis == -1) {
         const int block_size = 256;
         const int grid_size = (tensor.size + block_size - 1) / block_size;
         
@@ -353,7 +347,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
             cudaFree(d_result);
             d_result = d_final;
         }
-    } if (axis >= 0 && axis < tensor.ndim) {
+    } if (adjusted_axis >= 0 && adjusted_axis < tensor.ndim) {
         const int block_size = 256;
         const int grid_size = (out_size + block_size - 1) / block_size;
         
@@ -368,9 +362,9 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
             d_result,
             d_shape,
             d_strides,
-            axis,
+            adjusted_axis,
             out_size,
-            tensor.shape.get()[axis],
+            tensor.shape.get()[adjusted_axis],
             tensor.ndim
         );
     
@@ -395,8 +389,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
     );
 
     const char* device_str = "cuda";
-    result->device = std::shared_ptr<char[]>(strdup(device_str), [](char* p) { free(p); });
-
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     return result;
 }
 
@@ -449,33 +442,23 @@ __global__ void axis_min_kernel(
     output[idx] = min_val;
 }
 
-std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int adjusted_axis, bool keepdims) {
     std::vector<int> out_shape;
     int out_ndim = 0;
     const int* shape_ptr = tensor.shape.get();
-    
-    if (axis == -1) {
-        if (keepdims) {
-            out_shape.resize(tensor.ndim, 1);
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+
+    if (keepdims) {
+        for (int i = 0; i < tensor.ndim; i++) {
+            out_shape.push_back(i == adjusted_axis ? 1 : shape_ptr[i]);
         }
+        out_ndim = tensor.ndim;
     } else {
-        if (keepdims) {
-            out_shape.reserve(tensor.ndim);
-            for (int i = 0; i < tensor.ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : shape_ptr[i]);
+        for (int i = 0; i < tensor.ndim; i++) {
+            if (i != adjusted_axis) {
+                out_shape.push_back(shape_ptr[i]);
             }
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.reserve(tensor.ndim - 1);
-            for (int i = 0; i < tensor.ndim; i++) {
-                if (i != axis) out_shape.push_back(shape_ptr[i]);
-            }
-            out_ndim = tensor.ndim - 1;
         }
+        out_ndim = tensor.ndim - 1;
     }
 
     int out_size = 1;
@@ -484,7 +467,7 @@ std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool kee
     float* d_result;
     cudaMalloc(&d_result, out_size * sizeof(float));
 
-    if (axis == -1) {
+    if (adjusted_axis == -1) {
         const int block_size = 256;
         const int grid_size = (tensor.size + block_size - 1) / block_size;
         
@@ -501,7 +484,7 @@ std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool kee
             cudaFree(d_result);
             d_result = d_final;
         }
-    } else if (axis >= 0 && axis < tensor.ndim) {
+    } else if (adjusted_axis >= 0 && adjusted_axis < tensor.ndim) {
         const int block_size = 256;
         const int grid_size = (out_size + block_size - 1) / block_size;
         
@@ -516,9 +499,9 @@ std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool kee
             d_result,
             d_shape,
             d_strides,
-            axis,
+            adjusted_axis,
             out_size,
-            tensor.shape.get()[axis],
+            tensor.shape.get()[adjusted_axis],
             tensor.ndim
         );
     
@@ -596,33 +579,23 @@ __global__ void axis_sum_kernel(
     output[idx] = sum;
 }
 
-std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
+std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int adjusted_axis, bool keepdims) {
     std::vector<int> out_shape;
     int out_ndim = 0;
     const int* shape_ptr = tensor.shape.get();
-    
-    if (axis == -1) {
-        if (keepdims) {
-            out_shape.resize(tensor.ndim, 1);
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.push_back(1);
-            out_ndim = 1;
+
+    if (keepdims) {
+        for (int i = 0; i < tensor.ndim; i++) {
+            out_shape.push_back(i == adjusted_axis ? 1 : shape_ptr[i]);
         }
+        out_ndim = tensor.ndim;
     } else {
-        if (keepdims) {
-            out_shape.reserve(tensor.ndim);
-            for (int i = 0; i < tensor.ndim; i++) {
-                out_shape.push_back(i == axis ? 1 : shape_ptr[i]);
+        for (int i = 0; i < tensor.ndim; i++) {
+            if (i != adjusted_axis) {
+                out_shape.push_back(shape_ptr[i]);
             }
-            out_ndim = tensor.ndim;
-        } else {
-            out_shape.reserve(tensor.ndim - 1);
-            for (int i = 0; i < tensor.ndim; i++) {
-                if (i != axis) out_shape.push_back(shape_ptr[i]);
-            }
-            out_ndim = tensor.ndim - 1;
         }
+        out_ndim = tensor.ndim - 1;
     }
 
     int out_size = 1;
@@ -631,7 +604,7 @@ std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool kee
     float* d_result;
     cudaMalloc(&d_result, out_size * sizeof(float));
 
-    if (axis == -1) {
+    if (adjusted_axis == -1) {
         const int block_size = 256;
         const int grid_size = (tensor.size + block_size - 1) / block_size;
         
@@ -649,7 +622,7 @@ std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool kee
             );
             cudaFree(d_intermediate);
         }
-    } else if (axis >= 0 && axis < tensor.ndim) {
+    } else if (adjusted_axis >= 0 && adjusted_axis < tensor.ndim) {
         const int block_size = 256;
         const int grid_size = (out_size + block_size - 1) / block_size;
         
@@ -664,9 +637,9 @@ std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool kee
             d_result,
             d_shape,
             d_strides,
-            axis,
+            adjusted_axis,
             out_size,
-            tensor.shape.get()[axis],
+            tensor.shape.get()[adjusted_axis],
             tensor.ndim
         );
     
@@ -702,9 +675,10 @@ __global__ void scalar_div_kernel(float* data, int size, float divisor) {
     }
 }
 
-std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool keepdims) {
-    auto sum_tensor = sum_tensor_cuda(tensor, axis, keepdims);
-    int count = (axis == -1) ? tensor.size : tensor.shape.get()[axis];
+std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int adjusted_axis, bool keepdims) {
+    auto sum_tensor = sum_tensor_cuda(tensor, adjusted_axis, keepdims);
+
+    int count = (adjusted_axis == -1) ? tensor.size : tensor.shape.get()[adjusted_axis];
     
     int block_size = 256;
     int grid_size = (sum_tensor->size + block_size - 1) / block_size;

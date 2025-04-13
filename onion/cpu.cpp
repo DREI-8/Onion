@@ -1,5 +1,6 @@
 #include "cpu.h"
 #include <math.h>
+#include <stdexcept>
 
 void add_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
     for (int i = 0; i <tensor1->size; i++) {
@@ -48,202 +49,267 @@ void transpose_3d_cpu(const Tensor* tensor, float* result_data) {
     }
 }
 
-void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
-    if (axis == -1) {
-        float max_value = -INFINITY;
-        for (int i = 0; i < tensor->size; i++) {
-            max_value = fmax(max_value, tensor->data[i]);
-        }
-        result_data[0] = max_value;
-    }
-    else {
-        for (int i = 0; i < out_size; i++) {
+void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int adjusted_axis) {
+
+    const int ndim = tensor->ndim;
+    const int* shape = tensor->shape.get();
+    const int* strides = tensor->strides.get();
+
+    for (int i = 0; i < out_size; i++) {
+        if (adjusted_axis == -1) {
+            float max_val = -INFINITY;
+            for (int j = 0; j < tensor->size; j++)
+                max_val = fmax(max_val, tensor->data[j]);
+            result_data[i] = max_val;
+        } else {
             std::vector<int> out_idx;
-            if(out_ndim == tensor->ndim) { // If keepdims is true
-                out_idx.resize(tensor->ndim - 1, 0);
+            if (out_ndim == tensor->ndim) {
+                out_idx.resize(ndim, 0);
                 int tmp = i;
-                for (int j = tensor->ndim - 2; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
-                    tmp /= result_shape[j < axis ? j : j + 1];
+                for (int j = ndim - 1; j >= 0; j--) {
+                    if (j == adjusted_axis) continue;
+                    out_idx[j] = tmp % result_shape[j];
+                    tmp /= result_shape[j];
                 }
-            } else { // If keepdims is false
+            } else {
                 out_idx.resize(out_ndim, 0);
                 int tmp = i;
-                for (int j = out_ndim - 1; j >=0; j--) {
+                for (int j = out_ndim - 1; j >= 0; j--) {
                     out_idx[j] = tmp % result_shape[j];
                     tmp /= result_shape[j];
                 }
             }
 
-            float max_value = -INFINITY;
-            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
-                std::vector<int> full_idx;
-                full_idx.resize(tensor->ndim, 0);
+            float max_val = -INFINITY;
+            for (int k = 0; k < shape[adjusted_axis]; k++) {
+                std::vector<int> full_idx(ndim, 0);
                 int out_d = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    if (j == axis) {
-                        full_idx[j] = i;
+                for (int j = 0; j < ndim; j++) {
+                    if (j == adjusted_axis) {
+                        full_idx[j] = k;
                     } else {
-                        full_idx[j] = out_idx[out_d++];
+                        if (out_ndim == tensor->ndim) {
+                            full_idx[j] = out_idx[j];
+                        } else {
+                            // full_idx[j] = out_idx[out_d++];
+                            if (out_d >= out_ndim) {
+                                throw std::runtime_error("out_d out of bounds in max_tensor_cpu");
+                            }
+                            full_idx[j] = out_idx[out_d++];
+                        }
                     }
                 }
-                int input_index = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    input_index += full_idx[j] * tensor->strides.get()[j];
+
+                int input_idx = 0;
+                for (int j = 0; j < ndim; j++) {
+                    input_idx += full_idx[j] * strides[j];
                 }
-                max_value = fmax(max_value, tensor->data[input_index]);
+
+                if (input_idx < 0 || input_idx >= tensor->size) {
+                    throw std::runtime_error("input_idx out of bounds in max_tensor_cpu");
+                }
+
+                max_val = fmax(max_val, tensor->data[input_idx]);
             }
-            result_data[i] = max_value;
+            result_data[i] = max_val;
         }
     }
 }
 
-void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
-    if (axis == -1) {
-        float min_value = INFINITY;
-        for (int i = 0; i < tensor->size; i++) {
-            min_value = fmin(min_value, tensor->data[i]);
-        }
-        result_data[0] = min_value;
-    }
-    else {
-        for (int i = 0; i < out_size; i++) {
-            std::vector<int> out_idx;
-            if(out_ndim == tensor->ndim) { // If keepdims is true
-                out_idx.resize(tensor->ndim - 1, 0);
-                int tmp = i;
-                for (int j = tensor->ndim - 2; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
-                    tmp /= result_shape[j < axis ? j : j + 1];
-                }
-            } else { // If keepdims is false
-                out_idx.resize(out_ndim, 0);
-                int tmp = i;
-                for (int j = out_ndim - 1; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j];
-                    tmp /= result_shape[j];
-                }
-            }
+void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int adjusted_axis) {
+    const int ndim = tensor->ndim;
+    const int* shape = tensor->shape.get();
+    const int* strides = tensor->strides.get();
 
-            float min_value = INFINITY;
-            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
-                std::vector<int> full_idx;
-                full_idx.resize(tensor->ndim, 0);
+    for (int i = 0; i < out_size; i++) {
+        std::vector<int> out_idx;
+        if (out_ndim == tensor->ndim) {
+            out_idx.resize(ndim, 0);
+            int tmp = i;
+            for (int j = ndim - 1; j >= 0; j--) {
+                if (j == adjusted_axis) continue;
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        } else { // keepdims = false
+            out_idx.resize(out_ndim, 0);
+            int tmp = i;
+            for (int j = out_ndim - 1; j >= 0; j--) {
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        }
+
+        float min_val = INFINITY;
+        if (adjusted_axis == -1) {
+            // Global reduction
+            for (int j = 0; j < tensor->size; j++) {
+                min_val = fmin(min_val, tensor->data[j]);
+            }
+        } else {
+            for (int k = 0; k < shape[adjusted_axis]; k++) {
+                std::vector<int> full_idx(ndim, 0);
                 int out_d = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    if (j == axis) {
-                        full_idx[j] = i;
+                for (int j = 0; j < ndim; j++) {
+                    if (j == adjusted_axis) {
+                        full_idx[j] = k;
                     } else {
-                        full_idx[j] = out_idx[out_d++];
+                        if (out_ndim == tensor->ndim) {
+                            full_idx[j] = out_idx[j];
+                        } else {
+                            if (out_d >= out_ndim) {
+                                throw std::runtime_error("out_d out of bounds in sum_tensor_cpu");
+                            }
+                            full_idx[j] = out_idx[out_d++];
+                        }
                     }
                 }
-                int input_index = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    input_index += full_idx[j] * tensor->strides.get()[j];
-                }
-                min_value = fmin(min_value, tensor->data[input_index]);
-            }
-            result_data[i] = min_value;
-        }
-    }
-}
 
-void sum_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
-    if (axis == -1) {
-        float sum = 0.0;
-        for (int i = 0; i < tensor->size; i++) {
-            sum += tensor->data[i];
-        }
-        result_data[0] = sum;
-    } 
-    else {
-        for (int i = 0; i < out_size; i++) {
-            std::vector<int> out_idx;
-            if(out_ndim == tensor->ndim) { // If keepdims is true
-                out_idx.resize(tensor->ndim - 1, 0);
-                int tmp = i;
-                for (int j = tensor->ndim - 2; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
-                    tmp /= result_shape[j < axis ? j : j + 1];
+                int input_idx = 0;
+                for (int j = 0; j < ndim; j++) {
+                    input_idx += full_idx[j] * strides[j];
                 }
-            } else { // If keepdims is false
-                out_idx.resize(out_ndim, 0);
-                int tmp = i;
-                for (int j = out_ndim - 1; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j];
-                    tmp /= result_shape[j];
-                }
-            }
 
-            float sum = 0.0;
-            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
-                std::vector<int> full_idx;
-                full_idx.resize(tensor->ndim, 0);
-                int out_d = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    if (j == axis) {
-                        full_idx[j] = i;
-                    } else {
-                        full_idx[j] = out_idx[out_d++];
-                    }
+                if (input_idx < 0 || input_idx >= tensor->size) {
+                    throw std::runtime_error("input_idx out of bounds in min_tensor_cpu");
                 }
-                int input_index = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    input_index += full_idx[j] * tensor->strides.get()[j];
-                }
-                sum += tensor->data[input_index];
+
+                min_val = fmin(min_val, tensor->data[input_idx]);
             }
-            result_data[i] = sum;
         }
+        result_data[i] = min_val;
     }
 }
 
-void mean_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis) {
-    if (axis == -1) {
-        float mean = 0.0;
-        for (int i = 0; i < tensor->size; i++) {
-            mean += tensor->data[i];
-        }
-        result_data[0] = mean / tensor->size;
-    } 
-    else {
-        for (int i = 0; i < out_size; i++) {
-            std::vector<int> out_idx;
-            if(out_ndim == tensor->ndim) { // If keepdims is true
-                out_idx.resize(tensor->ndim - 1, 0);
-                int tmp = i;
-                for (int j = tensor->ndim - 2; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j < axis ? j : j + 1];
-                    tmp /= result_shape[j < axis ? j : j + 1];
-                }
-            } else { // If keepdims is false
-                out_idx.resize(out_ndim, 0);
-                int tmp = i;
-                for (int j = out_ndim - 1; j >=0; j--) {
-                    out_idx[j] = tmp % result_shape[j];
-                    tmp /= result_shape[j];
-                }
-            }
+void sum_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int adjusted_axis) {
+    const int ndim = tensor->ndim;
+    const int* shape = tensor->shape.get();
+    const int* strides = tensor->strides.get();
 
-            float mean = 0.0;
-            for (int i = 0; i < tensor->shape.get()[axis]; i++) {
-                std::vector<int> full_idx;
-                full_idx.resize(tensor->ndim, 0);
+    for (int i = 0; i < out_size; i++) {
+        std::vector<int> out_idx;
+        if (out_ndim == tensor->ndim) {
+            out_idx.resize(ndim, 0);
+            int tmp = i;
+            for (int j = ndim - 1; j >= 0; j--) {
+                if (j == adjusted_axis) continue;
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        } else {
+            out_idx.resize(out_ndim, 0);
+            int tmp = i;
+            for (int j = out_ndim - 1; j >= 0; j--) {
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        }
+
+        float sum = 0.0f;
+        if (adjusted_axis == -1) {
+            // Global reduction
+            for (int j = 0; j < tensor->size; j++) {
+                sum += tensor->data[j];
+            }
+        } else {
+            for (int k = 0; k < shape[adjusted_axis]; k++) {
+                std::vector<int> full_idx(ndim, 0);
                 int out_d = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    if (j == axis) {
-                        full_idx[j] = i;
+                for (int j = 0; j < ndim; j++) {
+                    if (j == adjusted_axis) {
+                        full_idx[j] = k;
                     } else {
-                        full_idx[j] = out_idx[out_d++];
+                        if (out_ndim == tensor->ndim) {
+                            full_idx[j] = out_idx[j];
+                        } else {
+                            if (out_d >= out_ndim) {
+                                throw std::runtime_error("out_d out of bounds in sum_tensor_cpu");
+                            }
+                            full_idx[j] = out_idx[out_d++];
+                        }
                     }
                 }
-                int input_index = 0;
-                for (int j = 0; j < tensor->ndim; j++) {
-                    input_index += full_idx[j] * tensor->strides.get()[j];
+
+                int input_idx = 0;
+                for (int j = 0; j < ndim; j++) {
+                    input_idx += full_idx[j] * strides[j];
                 }
-                mean += tensor->data[input_index];
+                if (input_idx < 0 || input_idx >= tensor->size) {
+                    throw std::runtime_error("input_idx out of bounds in sum_tensor_cpu");
+                }
+                sum += tensor->data[input_idx];
             }
-            result_data[i] = mean / tensor->shape.get()[axis];
         }
+        result_data[i] = sum;
+    }
+}
+
+void mean_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int adjusted_axis) {
+    const int ndim = tensor->ndim;
+    const int* shape = tensor->shape.get();
+    const int* strides = tensor->strides.get();
+
+    int reduction_size;
+    if (adjusted_axis == -1) {
+        reduction_size = tensor->size;
+    } else {
+        reduction_size = shape[adjusted_axis];
+    }
+
+    for (int i = 0; i < out_size; i++) {
+        std::vector<int> out_idx;
+        if (out_ndim == tensor->ndim) {
+            out_idx.resize(ndim, 0);
+            int tmp = i;
+            for (int j = ndim - 1; j >= 0; j--) {
+                if (j == adjusted_axis) continue;
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        } else {
+            out_idx.resize(out_ndim, 0);
+            int tmp = i;
+            for (int j = out_ndim - 1; j >= 0; j--) {
+                out_idx[j] = tmp % result_shape[j];
+                tmp /= result_shape[j];
+            }
+        }
+
+        float sum = 0.0f;
+        if (adjusted_axis == -1) {
+            // Global reduction
+            for (int j = 0; j < tensor->size; j++) {
+                sum += tensor->data[j];
+            }
+        } else {
+            for (int k = 0; k < reduction_size; k++) {
+                std::vector<int> full_idx(ndim, 0);
+                int out_d = 0;
+                for (int j = 0; j < ndim; j++) {
+                    if (j == adjusted_axis) {
+                        full_idx[j] = k;
+                    } else {
+                        if (out_ndim == tensor->ndim) {
+                            full_idx[j] = out_idx[j];
+                        } else {
+                            if (out_d >= out_ndim) {
+                                throw std::runtime_error("out_d out of bounds in sum_tensor_cpu");
+                            }
+                            full_idx[j] = out_idx[out_d++];
+                        }
+                    }
+                }
+
+                int input_idx = 0;
+                for (int j = 0; j < ndim; j++) {
+                    input_idx += full_idx[j] * strides[j];
+                }
+                if (input_idx < 0 || input_idx >= tensor->size) {
+                    throw std::runtime_error("input_idx out of bounds in mean_tensor_cpu");
+                }
+                sum += tensor->data[input_idx];
+            }
+        }
+        result_data[i] = sum / reduction_size;
     }
 }

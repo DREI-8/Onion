@@ -72,10 +72,10 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("reshape", &Tensor::reshape, "Reshape the tensor")
 		.def("transpose", &Tensor::transpose, "Transpose the tensor")
 		.def_property_readonly("T", &Tensor::transpose, "Alias for transpose()")
-		.def("max", &Tensor::max, py::arg("axis"), py::arg("keepdims"), "Get the maximum value along an axis")
-		.def("min", &Tensor::min, py::arg("axis"), py::arg("keepdims"), "Get the minimum value along an axis")
-		.def("sum", &Tensor::sum, py::arg("axis"), py::arg("keepdims"), "Get the sum along an axis")
-		.def("mean", &Tensor::mean, py::arg("axis"), py::arg("keepdims"), "Get the mean along an axis")
+		.def("max", &Tensor::max, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the maximum value along an axis")
+		.def("min", &Tensor::min, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the minimum value along an axis")
+		.def("sum", &Tensor::sum, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the sum along an axis")
+		.def("mean", &Tensor::mean, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the mean along an axis")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
 		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
@@ -88,8 +88,8 @@ ONION_EXPORT void init_tensor(py::module& m) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
 		.def("numpy", [](const Tensor& tensor) {
-            return tensor_to_numpy(tensor);
-        }, "Convert tensor to numpy array")
+			return tensor_to_numpy(tensor);
+		}, "Convert tensor to numpy array")
 		.def("__repr__", [](const Tensor& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";

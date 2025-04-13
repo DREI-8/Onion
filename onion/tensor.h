@@ -22,10 +22,10 @@ class Tensor {
         float get_item(const std::vector<int>& indices) const;
         std::shared_ptr<Tensor> reshape(const std::vector<int>& new_shape) const;
         std::shared_ptr<Tensor> transpose() const;
-        std::shared_ptr<Tensor> max(int axis, bool keepdims) const;
-        std::shared_ptr<Tensor> min(int axis, bool keepdims) const;
-        std::shared_ptr<Tensor> sum(int axis, bool keepdims) const;
-        std::shared_ptr<Tensor> mean(int axis, bool keepdims) const;
+        std::shared_ptr<Tensor> max(int axis = -999, bool keepdims = false) const;
+        std::shared_ptr<Tensor> min(int axis = -999, bool keepdims = false) const;
+        std::shared_ptr<Tensor> sum(int axis = -999, bool keepdims = false) const;
+        std::shared_ptr<Tensor> mean(int axis = -999, bool keepdims = false) const;
 
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
