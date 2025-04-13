@@ -349,7 +349,7 @@ std::shared_ptr<Tensor> Tensor::mean(int axis, bool keepdims) const {
     } else {
         if (adjusted_axis < 0) adjusted_axis += ndim;
         if (adjusted_axis < 0 || adjusted_axis >= ndim)
-            throw std::runtime_error("Axis out of bounds in max");
+            throw std::runtime_error("Axis out of bounds in mean");
     }
 
     std::vector<int> out_shape;
