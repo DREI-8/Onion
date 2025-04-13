@@ -12,20 +12,26 @@
 namespace py = pybind11;
 
 std::shared_ptr<Tensor> numpy_to_tensor(py::array_t<float> numpy_array) {
-	py::buffer_info buffer = numpy_array.request();
-	float* data_ptr = static_cast<float*>(buffer.ptr);
+    py::buffer_info buffer = numpy_array.request();
+    float* data_ptr = static_cast<float*>(buffer.ptr);
 
-	float* data = new float[buffer.size];
-	memcpy(data, data_ptr, buffer.size * sizeof(float));
-
-	int ndim = buffer.ndim;
-	int* shape = new int[ndim];
-
-	for (int i = 0; i < ndim; i++) {
-		shape[i] = static_cast<int>(buffer.shape[i]);
+	if (!(numpy_array.flags() & py::array::c_style)) {
+		numpy_array = numpy_array.cast<py::array_t<float, py::array::c_style>>();
+		buffer = numpy_array.request();
+		data_ptr = static_cast<float*>(buffer.ptr);
 	}
 
-	return std::make_shared<Tensor>(data, shape, ndim);
+    float* data = new float[buffer.size];
+    memcpy(data, data_ptr, buffer.size * sizeof(float));
+
+    int ndim = buffer.ndim;
+    int* shape = new int[ndim];
+
+    for (int i = 0; i < ndim; i++) {
+        shape[i] = static_cast<int>(buffer.shape[i]);
+    }
+
+    return std::make_shared<Tensor>(data, shape, ndim);
 }
 
 py::array_t<float> tensor_to_numpy(const Tensor& tensor) {
