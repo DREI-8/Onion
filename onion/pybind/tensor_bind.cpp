@@ -90,6 +90,16 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("numpy", [](const Tensor& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
+		.def_property_readonly("shape", [](const Tensor& t) {
+            std::vector<int> shape(t.ndim);
+            for (int i = 0; i < t.ndim; ++i) {
+                shape[i] = t.shape.get()[i];
+            }
+            return py::tuple(py::cast(shape));
+        }, "Shape of the tensor (tuple)")
+        .def_property_readonly("dtype", [](const Tensor&) {
+            return py::dtype("float32");
+        }, "Data type of the tensor (numpy.float32)")
 		.def("__repr__", [](const Tensor& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";
