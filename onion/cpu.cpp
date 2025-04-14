@@ -20,6 +20,71 @@ void elementwise_mul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, fl
     }
 }
 
+void MatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
+
+    if(tensor1->shape[1] != tensor2->shape[0]) {
+        throw std::runtime_error("Matrix dimensions do not match for multiplication.");
+    }
+    if(tensor1->ndim != 2 || tensor2->ndim != 2) {
+        throw std::runtime_error("Both tensors must be 2D for matrix multiplication.");
+    }
+
+    int rows = tensor1->shape[0];
+    int cols = tensor2->shape[1];
+    int inner_dim = tensor1->shape[1];
+
+    for (int i = 0; i < rows; i++) {
+        for (int j = 0; j < cols; j++) {
+            result_data[i * cols + j] = 0.0f;
+            for (int k = 0; k < inner_dim; k++) {
+                result_data[i * cols + j] += tensor1->data[i * inner_dim + k] * tensor2->data[k * cols + j];
+            }
+        }
+    }
+}
+
+void BatchMatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
+    // Vérification des dimensions
+    if(tensor1->ndim != 3 || tensor2->ndim != 3) {
+        throw std::runtime_error("Both tensors must be 3D for batch matrix multiplication.");
+    }
+    if(tensor1->shape[0] != tensor2->shape[0]) {
+        throw std::runtime_error("Batch sizes do not match.");
+    }
+    if(tensor1->shape[2] != tensor2->shape[1]) {
+        throw std::runtime_error("Matrix dimensions do not match for multiplication.");
+    }
+
+    int batch_size = tensor1->shape[0];
+    int rows = tensor1->shape[1];
+    int cols = tensor2->shape[2];
+    int inner_dim = tensor1->shape[2];
+    
+    // Taille des matrices dans chaque batch
+    int mat_size1 = rows * inner_dim;
+    int mat_size2 = inner_dim * cols;
+    int result_mat_size = rows * cols;
+
+    // Obtenir les pointeurs bruts des données
+    float* data1 = tensor1->data.get();
+    float* data2 = tensor2->data.get();
+
+    for (int b = 0; b < batch_size; b++) {
+        float* batch_ptr1 = data1 + b * mat_size1;
+        float* batch_ptr2 = data2 + b * mat_size2;
+        float* result_ptr = result_data + b * result_mat_size;
+
+        for (int i = 0; i < rows; i++) {
+            for (int j = 0; j < cols; j++) {
+                result_ptr[i * cols + j] = 0.0f;
+                for (int k = 0; k < inner_dim; k++) {
+                    result_ptr[i * cols + j] += batch_ptr1[i * inner_dim + k] * batch_ptr2[k * cols + j];
+                }
+            }
+        }
+    }
+}
+
 void assign_tensor_cpu(const Tensor* tensor, float* result_data) {
     for (int i = 0; i <tensor->size; i++) {
         result_data[i] = tensor->data[i];

@@ -719,6 +719,113 @@ std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int adjusted_axis
     return sum_tensor;
 }
 
+/// Kernel for matrix multiplication
+
+__global__ void matmul_kernel(const float* a, const float* b, float* result, 
+    int m, int n, int k) {
+int row = blockIdx.y * blockDim.y + threadIdx.y;
+int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+if (row < m && col < k) {
+float sum = 0.0f;
+for (int i = 0; i < n; ++i) {
+sum += a[row * n + i] * b[i * k + col];
+}
+result[row * k + col] = sum;
+}
+}
+
+Tensor matmul_gpu(const Tensor& a, const Tensor& b) {
+// Vérification des dimensions
+if (a.ndim != 2 || b.ndim != 2 || a.shape[1] != b.shape[0]) {
+throw std::runtime_error("Invalid dimensions for matrix multiplication");
+}
+
+int m = a.shape[0];
+int n = a.shape[1];
+int k = b.shape[1];
+
+// Allocation mémoire pour le résultat sur le GPU
+float* result_data;
+cudaMalloc(&result_data, m * k * sizeof(float));
+
+// Configuration des blocs et threads
+dim3 block_size(16, 16);
+dim3 num_blocks((k + block_size.x - 1) / block_size.x, 
+(m + block_size.y - 1) / block_size.y);
+
+// Lancement du kernel
+matmul_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, m, n, k);
+cudaDeviceSynchronize();
+
+// Création du tensor résultat
+int* result_shape = new int[2]{m, k};
+
+auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
+std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
+
+Tensor result(shared_result, result_shape, 2);
+result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+
+return result;
+}
+
+__global__ void batch_matmul_kernel(const float* a, const float* b, float* result, 
+                                  int batch_size, int m, int n, int k) {
+    int batch = blockIdx.z;
+    int row = blockIdx.y * blockDim.y + threadIdx.y;
+    int col = blockIdx.x * blockDim.x + threadIdx.x;
+    
+    if (batch < batch_size && row < m && col < k) {
+        float sum = 0.0f;
+        for (int i = 0; i < n; ++i) {
+            int a_idx = batch * m * n + row * n + i;
+            int b_idx = batch * n * k + i * k + col;
+            sum += a[a_idx] * b[b_idx];
+        }
+        int result_idx = batch * m * k + row * k + col;
+        result[result_idx] = sum;
+    }
+}
+
+Tensor batch_matmul_gpu(const Tensor& a, const Tensor& b) {
+    // Vérification des dimensions
+    if (a.ndim != 3 || b.ndim != 3 || a.shape[0] != b.shape[0] || a.shape[2] != b.shape[1]) {
+        throw std::runtime_error("Invalid dimensions for batch matrix multiplication");
+    }
+    
+    int batch_size = a.shape[0];
+    int m = a.shape[1];
+    int n = a.shape[2];
+    int k = b.shape[2];
+    
+    // Allocation mémoire pour le résultat sur le GPU
+    float* result_data;
+    cudaMalloc(&result_data, batch_size * m * k * sizeof(float));
+    
+    // Configuration des blocs et threads
+    dim3 block_size(16, 16);
+    dim3 num_blocks((k + block_size.x - 1) / block_size.x,
+                    (m + block_size.y - 1) / block_size.y,
+                    batch_size);
+    
+    // Lancement du kernel
+    batch_matmul_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, 
+                                                  batch_size, m, n, k);
+    cudaDeviceSynchronize();
+    
+    // Création du tensor résultat
+    int* result_shape = new int[3]{batch_size, m, k};
+    
+    auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
+    std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
+    
+    Tensor result(shared_result, result_shape, 3);
+    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    
+    return result;
+}
+
 #else
 
 bool is_cuda_available() {

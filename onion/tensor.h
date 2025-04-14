@@ -30,6 +30,7 @@ class Tensor {
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
         Tensor operator*(const Tensor& other) const;
+        Tensor matmul(const Tensor& other) const;
 
         bool contiguous() const;
         Tensor to_contiguous() const;

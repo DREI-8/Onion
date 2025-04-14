@@ -15,5 +15,7 @@ std::shared_ptr<Tensor> max_tensor_cuda(const Tensor& tensor, int axis, bool kee
 std::shared_ptr<Tensor> min_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
 std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
 std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool keepdims);
+Tensor matmul_gpu(const Tensor& a, const Tensor& b);
+Tensor batch_matmul_gpu(const Tensor& a, const Tensor& b);
 
 #endif // CUDA_H
