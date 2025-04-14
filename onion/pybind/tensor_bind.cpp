@@ -12,20 +12,26 @@
 namespace py = pybind11;
 
 std::shared_ptr<Tensor> numpy_to_tensor(py::array_t<float> numpy_array) {
-	py::buffer_info buffer = numpy_array.request();
-	float* data_ptr = static_cast<float*>(buffer.ptr);
+    py::buffer_info buffer = numpy_array.request();
+    float* data_ptr = static_cast<float*>(buffer.ptr);
 
-	float* data = new float[buffer.size];
-	memcpy(data, data_ptr, buffer.size * sizeof(float));
-
-	int ndim = buffer.ndim;
-	int* shape = new int[ndim];
-
-	for (int i = 0; i < ndim; i++) {
-		shape[i] = static_cast<int>(buffer.shape[i]);
+	if (!(numpy_array.flags() & py::array::c_style)) {
+		numpy_array = numpy_array.cast<py::array_t<float, py::array::c_style>>();
+		buffer = numpy_array.request();
+		data_ptr = static_cast<float*>(buffer.ptr);
 	}
 
-	return std::make_shared<Tensor>(data, shape, ndim);
+    float* data = new float[buffer.size];
+    memcpy(data, data_ptr, buffer.size * sizeof(float));
+
+    int ndim = buffer.ndim;
+    int* shape = new int[ndim];
+
+    for (int i = 0; i < ndim; i++) {
+        shape[i] = static_cast<int>(buffer.shape[i]);
+    }
+
+    return std::make_shared<Tensor>(data, shape, ndim);
 }
 
 py::array_t<float> tensor_to_numpy(const Tensor& tensor) {
@@ -71,21 +77,34 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("get_item", &Tensor::get_item, "Get an element from the tensor")
 		.def("reshape", &Tensor::reshape, "Reshape the tensor")
 		.def("transpose", &Tensor::transpose, "Transpose the tensor")
-		.def("max", &Tensor::max, py::arg("axis"), py::arg("keepdims"), "Get the maximum value along an axis")
-		.def("min", &Tensor::min, py::arg("axis"), py::arg("keepdims"), "Get the minimum value along an axis")
-		.def("sum", &Tensor::sum, py::arg("axis"), py::arg("keepdims"), "Get the sum along an axis")
-		.def("mean", &Tensor::mean, py::arg("axis"), py::arg("keepdims"), "Get the mean along an axis")
+		.def_property_readonly("T", &Tensor::transpose, "Alias for transpose()")
+		.def("max", &Tensor::max, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the maximum value along an axis")
+		.def("min", &Tensor::min, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the minimum value along an axis")
+		.def("sum", &Tensor::sum, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the sum along an axis")
+		.def("mean", &Tensor::mean, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the mean along an axis")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
 		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
-		.def("to", [](Tensor& tensor, const std::string& device) {
-			tensor.to(device.c_str());
-			return tensor;
+		.def("to", [](const Tensor& tensor, const std::string& device) {
+			return tensor.to(device.c_str());
 		}, "Move tensor to the specified device (cpu or cuda)")
 		.def("is_cuda", &Tensor::is_cuda, "Check if tensor is on CUDA")
 		.def("__array__", [](const Tensor& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
+		.def("numpy", [](const Tensor& tensor) {
+			return tensor_to_numpy(tensor);
+		}, "Convert tensor to numpy array")
+		.def_property_readonly("shape", [](const Tensor& t) {
+            std::vector<int> shape(t.ndim);
+            for (int i = 0; i < t.ndim; ++i) {
+                shape[i] = t.shape.get()[i];
+            }
+            return py::tuple(py::cast(shape));
+        }, "Shape of the tensor (tuple)")
+        .def_property_readonly("dtype", [](const Tensor&) {
+            return py::dtype("float32");
+        }, "Data type of the tensor (numpy.float32)")
 		.def("__repr__", [](const Tensor& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";
