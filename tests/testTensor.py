@@ -1,104 +1,177 @@
 import unittest
 import numpy as np
+import torch
 from onion import Tensor, is_cuda_available
 
 class TestTensor(unittest.TestCase):
     
     def setUp(self):
-        """Prepare the test environment."""
-        self.data = np.array([[[1, 2], [3, 4], [5, 6]], 
-                             [[7, 8], [9, 10], [11, 12]]], dtype=np.float32)
-        self.tensor = Tensor(self.data)
-
-        self.data_transpose = np.array([[ 1.0028, -0.9893, 0.5809],
-                                       [-0.1669, 0.7299, 0.4942]], dtype=np.float32)
-
-        self.data_max_min = np.array([[1, 2, 3], [4, 5, 6]], dtype=np.float32)
-
-    def test_tensor_creation(self):
-        """Testing tensor creation."""
-        tensor = Tensor(self.data)
-        self.assertEqual(tensor.ndim, 3)
-        self.assertEqual(tensor.size, 12)
-
-    def test_get_item(self):
-        """Testing access to tensor elements."""
-        self.assertEqual(self.tensor.get_item([0, 0, 1]), 2)
-        self.assertEqual(self.tensor.get_item([1, 2, 1]), 12)
-
-    def test_reshape(self):
-        """Testing the reshape method."""
-        new_shape = [4, 3]
-        reshaped_tensor = self.tensor.reshape(new_shape)
-        self.assertEqual(reshaped_tensor.ndim, 2)
-
-    def test_transpose(self):
-        """Testing the transpose method."""
-        tensor_transpose = Tensor(self.data_transpose)
-        transposed_tensor = tensor_transpose.transpose()
-
-        self.assertEqual(tensor_transpose.get_item([0, 0, 0]), transposed_tensor.get_item([0, 0, 0]))
-        self.assertEqual(tensor_transpose.get_item([0, 1, 0]), transposed_tensor.get_item([1, 0, 0]))
-
-    def test_reduction_operations(self):
-        """Testing max, min, sum and mean methods."""
-        tensor_max_min = Tensor(self.data_max_min)
+        """Prepare test data for different scenarios."""
+        # Basic 3D data
+        self.data_3d = np.array([[[1, 2], [3, 4], [5, 6]], 
+                                [[7, 8], [9, 10], [11, 12]]], dtype=np.float32)
         
-        # Test max
-        max_value = tensor_max_min.max(axis=-1, keepdims=True)
-        self.assertEqual(max_value.get_item([0, 0]), 6) # max value from the entire tensor
+        # 2D data for reductions
+        self.data_2d = np.array([[1.0, 2.0, 3.0],
+                                [4.0, 5.0, 6.0]], dtype=np.float32)
         
-        # Test min
-        min_value = tensor_max_min.min(axis=-1, keepdims=False)
-        self.assertEqual(min_value.get_item([0]), 1) # min value from the entire tensor
+        # Edge case: 1D data
+        self.data_1d = np.array([-1.5, 2.3, 0.0, 4.7], dtype=np.float32)
         
-        # Test sum
-        sum_value = tensor_max_min.sum(axis=0, keepdims=True)
-        self.assertEqual(sum_value.get_item([0, 0]), 5) # [0, 0] + [1, 0] = 1 + 4
-        self.assertEqual(sum_value.get_item([0, 2]), 9) # [0, 2] + [1, 2] = 2 + 5
+        # Non-contiguous data (transposed)
+        self.data_non_contig = np.array([[1, 4], [2, 5], [3, 6]], dtype=np.float32).T
         
-        # Test mean
-        mean_value = tensor_max_min.mean(axis=1, keepdims=False)
-        self.assertEqual(mean_value.get_item([0]), 2.0) # mean of [1, 2, 3] = (1+2+3)/3
-        self.assertEqual(mean_value.get_item([1]), 5.0) # mean of [4, 5, 6] = (4+5+6)/3
+        # Zero-initialized data
+        self.data_zeros = np.zeros((2, 3), dtype=np.float32)
 
-    def test_arithmetic_operations(self):
-        """Testing arithmetic operations."""
-        tensor2 = Tensor(np.array([[[1, 1], [1, 1], [1, 1]], 
-                                  [[1, 1], [1, 1], [1, 1]]], dtype=np.float32))
+    def _compare_with_torch(self, onion_result, np_input, axis, keepdims, op_name):
+        """Helper to compare results with PyTorch implementation."""
+        # Convert to PyTorch tensor
+        torch_tensor = torch.from_numpy(np_input)
         
-        # Addition & Subtraction
-        result = self.tensor + tensor2 - tensor2
-        self.assertEqual(result.get_item([1, 2, 1]), 12)
+        # PyTorch operation
+        if op_name == 'max':
+            torch_result = torch_tensor.max(dim=axis, keepdim=keepdims)[0]
+        elif op_name == 'min':
+            torch_result = torch_tensor.min(dim=axis, keepdim=keepdims)[0]
+        elif op_name == 'sum':
+            torch_result = torch_tensor.sum(dim=axis, keepdim=keepdims)
+        elif op_name == 'mean':
+            torch_result = torch_tensor.mean(dim=axis, keepdim=keepdims)
         
-        # Subtraction & Multiplication
-        result = self.tensor - tensor2 * tensor2
-        self.assertEqual(result.get_item([1, 2, 1]), 11)
+        # Convert results to numpy
+        onion_np = onion_result.numpy()
+        torch_np = torch_result.numpy()
         
-        # Multiplication & Addition
-        result = self.tensor * tensor2 + tensor2
-        self.assertEqual(result.get_item([1, 2, 1]), 13)
+        # Compare shapes and values
+        self.assertEqual(onion_np.shape, torch_np.shape,
+                         f"Shape mismatch for {op_name} (axis={axis}, keepdims={keepdims})")
+        self.assertTrue(np.allclose(onion_np, torch_np, atol=1e-6),
+                        f"Value mismatch for {op_name} (axis={axis}, keepdims={keepdims})")
 
-    @unittest.skipIf(not is_cuda_available(), "CUDA is not available")
-    def test_cuda_operations(self):
-        """Testing CUDA operations (skip if CUDA is not available)."""
-        cuda_data = np.array([[1.0, 2.0, 3.0], [4.0, 5.0, 6.0]], dtype=np.float32)
-        cuda_tensor = Tensor(cuda_data)
-
-        cuda_tensor = cuda_tensor.to("cuda")
-        self.assertTrue(cuda_tensor.is_cuda())
-
-        cuda_result_add = cuda_tensor + cuda_tensor
-        cuda_result_sub = cuda_tensor - cuda_tensor
+    def _test_operation(self, np_data, device, op_name, axes_to_test):
+        """Generic test for reduction operations across devices."""
+        # Create our tensor and move to device
+        onion_tensor = Tensor(np_data).to(device)
         
-        # Get results back to CPU
-        cpu_result_add = cuda_result_add.to("cpu")
-        self.assertFalse(cpu_result_add.is_cuda())
-        self.assertEqual(cpu_result_add.get_item([1, 2]), 12.0)
+        for axis in axes_to_test:
+            for keepdims in [True, False]:
+                with self.subTest(device=device, op=op_name, axis=axis, keepdims=keepdims):
+                    # Perform operation
+                    if op_name == 'max':
+                        result = onion_tensor.max(axis, keepdims)
+                    elif op_name == 'min':
+                        result = onion_tensor.min(axis, keepdims)
+                    elif op_name == 'sum':
+                        result = onion_tensor.sum(axis, keepdims)
+                    elif op_name == 'mean':
+                        result = onion_tensor.mean(axis, keepdims)
+                    
+                    # Move result to CPU for comparison
+                    if result.is_cuda():
+                        result = result.to("cpu")
+                    
+                    # Compare with PyTorch
+                    self._compare_with_torch(result, np_data, axis, keepdims, op_name)
+
+    def test_reductions_cpu(self):
+        """Test reduction operations on CPU."""
+        test_cases = [
+            (self.data_2d, ['max', 'min', 'sum', 'mean'], [-1, 0, 1]),
+            (self.data_1d, ['max', 'min', 'sum', 'mean'], [-1, 0]),
+            (self.data_non_contig, ['max', 'sum'], [0, 1]),
+            (self.data_zeros, ['min', 'mean'], [0])
+        ]
         
-        cpu_result_sub = cuda_result_sub.to("cpu")
-        self.assertFalse(cpu_result_sub.is_cuda())
-        self.assertEqual(cpu_result_sub.get_item([1, 2]), 0.0)
+        for data, ops, axes in test_cases:
+            for op in ops:
+                self._test_operation(data, "cpu", op, axes)
+
+    @unittest.skipIf(not is_cuda_available(), "CUDA not available")
+    def test_reductions_cuda(self):
+        """Test reduction operations on CUDA."""
+        test_cases = [
+            (self.data_2d, ['max', 'min', 'sum', 'mean'], [-1, 0, 1]),
+            (self.data_1d, ['max', 'min', 'sum', 'mean'], [-1, 0]),
+            (self.data_non_contig, ['max', 'sum'], [0, 1]),
+            (self.data_zeros, ['min', 'mean'], [0])
+        ]
+        
+        for data, ops, axes in test_cases:
+            for op in ops:
+                self._test_operation(data, "cuda", op, axes)
+
+    def test_arithmetic_consistency(self):
+        """Test arithmetic operations across devices against PyTorch."""
+        ops = [
+            ('add', lambda a, b: a + b),
+            ('sub', lambda a, b: a - b),
+            ('mul', lambda a, b: a * b)
+        ]
+        
+        test_data = [
+            (self.data_2d, self.data_2d),
+            (self.data_1d, self.data_1d),
+            (self.data_non_contig, self.data_non_contig)
+        ]
+        
+        for device in ["cpu", "cuda"] if is_cuda_available() else ["cpu"]:
+            if device == "cuda" and not is_cuda_available():
+                continue
+                
+            for a_np, b_np in test_data:
+                # Create tensors
+                a_onion = Tensor(a_np).to(device)
+                b_onion = Tensor(b_np).to(device)
+                
+                # Create PyTorch tensors
+                a_torch = torch.from_numpy(a_np).to(device)
+                b_torch = torch.from_numpy(b_np).to(device)
+                
+                for op_name, op_func in ops:
+                    with self.subTest(device=device, op=op_name):
+                        # Onion operation
+                        result_onion = op_func(a_onion, b_onion)
+                        if result_onion.is_cuda():
+                            result_onion = result_onion.to("cpu")
+                        
+                        # PyTorch operation
+                        result_torch = op_func(a_torch, b_torch).cpu().numpy()
+                        
+                        # Comparison
+                        self.assertTrue(np.allclose(result_onion.numpy(), result_torch, atol=1e-6))
+
+    def test_edge_cases(self):
+        """Test edge cases and error handling."""
+        # Invalid axis
+        t = Tensor(self.data_2d)
+        with self.assertRaises(RuntimeError):
+            t.max(axis=3)
+        
+        # Empty tensor
+        empty_t = Tensor(np.array([], dtype=np.float32))
+        self.assertEqual(empty_t.sum().numpy().item(), 0.0)
+
+        # All NaN values
+        nan_data = np.full((2, 2), np.nan, dtype=np.float32)
+        nan_t = Tensor(nan_data)
+        self.assertTrue(np.isnan(nan_t.sum().numpy().item()))
+
+    @unittest.skipIf(not is_cuda_available(), "CUDA not available")
+    def test_device_conversion(self):
+        """Test device conversion mechanics."""
+        # CPU -> CUDA -> CPU
+        t = Tensor(self.data_2d)
+        t_gpu = t.to("cuda")
+        self.assertTrue(t_gpu.is_cuda())
+        t_cpu = t_gpu.to("cpu")
+        self.assertFalse(t_cpu.is_cuda())
+        self.assertTrue(np.allclose(t.numpy(), t_cpu.numpy()))
+
+        # Operations across devices should fail
+        t_gpu2 = Tensor(self.data_2d).to("cuda")
+        with self.assertRaises(RuntimeError):
+            t + t_gpu2
 
 if __name__ == '__main__':
     unittest.main()
