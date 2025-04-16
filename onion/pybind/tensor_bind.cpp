@@ -8,6 +8,7 @@
 #ifdef USE_CUDA
 #include <cuda_runtime.h>
 #endif
+#include <iostream>
 
 namespace py = pybind11;
 
@@ -83,8 +84,11 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("sum", &Tensor::sum, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the sum along an axis")
 		.def("mean", &Tensor::mean, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the mean along an axis")
 		.def("__add__", &Tensor::operator+, "Add two tensors")
-		.def("__sub__", &Tensor::operator-, "Subtract two tensors")
+		.def("__sub__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator-), "Subtract two tensors")
+		.def("__neg__", static_cast<Tensor (Tensor::*)() const>(&Tensor::operator-), "Negate a tensor")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
+		.def("matmul", &Tensor::matmul, "Matrix multiplication between two tensors")
+        .def("__matmul__", &Tensor::matmul, "Matrix multiplication operator (@ in Python)")
 		.def("to", [](const Tensor& tensor, const std::string& device) {
 			return tensor.to(device.c_str());
 		}, "Move tensor to the specified device (cpu or cuda)")
@@ -105,6 +109,38 @@ ONION_EXPORT void init_tensor(py::module& m) {
         .def_property_readonly("dtype", [](const Tensor&) {
             return py::dtype("float32");
         }, "Data type of the tensor (numpy.float32)")
+		.def(py::init([](py::array_t<float> array, bool requires_grad) {
+            auto tensor = numpy_to_tensor(array);
+            tensor->requires_grad = requires_grad;
+            return tensor;
+        }), py::arg("array"), py::arg("requires_grad") = false)
+		.def_property("requires_grad", 
+            [](const Tensor& t) { return t.requires_grad; },
+            [](Tensor& t, bool value) { t.requires_grad = value; })
+        .def_property_readonly("grad", 
+            [](const Tensor& t) -> py::object {
+                if (t.grad) {
+                    return py::cast(t.grad);
+                } else {
+                    return py::none();
+                }
+            })
+        .def("backward", [](Tensor& t, py::object gradient) {
+            if (gradient.is_none()) {
+                t.backward(nullptr);
+            } else {
+                auto grad_tensor = py::cast<std::shared_ptr<Tensor>>(gradient);
+                t.backward(grad_tensor);
+            }
+        }, py::arg("gradient") = py::none())
+        .def("zero_grad", &Tensor::zero_grad)
+        .def("detach", &Tensor::detach)
+		.def("debug_info", [](const Tensor& t) {
+			std::cout << "Tensor debug info:" << std::endl;
+			std::cout << "  requires_grad: " << (t.requires_grad ? "true" : "false") << std::endl;
+			std::cout << "  has grad_fn: " << (t.grad_fn ? "true" : "false") << std::endl;
+			return py::none();
+		})
 		.def("__repr__", [](const Tensor& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";

@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-class Tensor {
+class Tensor : public std::enable_shared_from_this<Tensor> {
     public:
         std::shared_ptr<float[]> data;
         std::shared_ptr<int[]> strides;
@@ -14,8 +14,12 @@ class Tensor {
         std::shared_ptr<char[]> device;
         bool is_contiguous;
 
-        Tensor(float* data, int* shape, int ndim);
-        Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim);
+        bool requires_grad = false;
+        std::shared_ptr<Tensor> grad;
+        std::shared_ptr<class AutogradFunction> grad_fn;
+        
+        Tensor(float* data, int* shape, int ndim, bool requires_grad = false);
+        Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim, bool requires_grad = false);
         Tensor(const Tensor& other);
         ~Tensor() = default;
 
@@ -29,7 +33,13 @@ class Tensor {
 
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
+        Tensor operator-() const;
         Tensor operator*(const Tensor& other) const;
+        Tensor matmul(const Tensor& other) const;
+
+        void backward(std::shared_ptr<Tensor> gradient = nullptr);
+        void zero_grad();
+        Tensor detach() const;
 
         bool contiguous() const;
         Tensor to_contiguous() const;

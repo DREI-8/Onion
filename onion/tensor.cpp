@@ -1,6 +1,7 @@
 #include "tensor.h"
 #include "cpu.h"
 #include "cuda.h"
+#include "autograd.h"
 
 #include <stdio.h>
 #include <stdlib.h>
@@ -8,7 +9,7 @@
 #include <math.h>
 #include <stdexcept>
 
-Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
+Tensor::Tensor(float* data, int* shape, int ndim, bool requires_grad) : ndim(ndim), requires_grad(requires_grad) {
     this->size = 1;
     for (int i = 0; i < ndim; i++) {
         this->size *= shape[i];
@@ -31,7 +32,7 @@ Tensor::Tensor(float* data, int* shape, int ndim): ndim(ndim) {
     this->is_contiguous = true;
 }
 
-Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim(ndim) {
+Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim, bool requires_grad) : ndim(ndim), requires_grad(requires_grad) {
     this->size = 1;
     for (int i = 0; i < ndim; i++) {
         this->size *= shape[i];
@@ -53,7 +54,13 @@ Tensor::Tensor(std::shared_ptr<float[]> shared_data, int* shape, int ndim): ndim
     this->is_contiguous = true;
 }
 
-Tensor::Tensor(const Tensor& other) : ndim(other.ndim), size(other.size) {
+Tensor::Tensor(const Tensor& other) : 
+    ndim(other.ndim), 
+    size(other.size),
+    requires_grad(other.requires_grad),
+    grad_fn(other.grad_fn),
+    grad(other.grad)
+{
     data = other.data;
 
     shape = std::shared_ptr<int[]>(new int[ndim]);
@@ -63,7 +70,7 @@ Tensor::Tensor(const Tensor& other) : ndim(other.ndim), size(other.size) {
     memcpy(strides.get(), other.strides.get(), ndim * sizeof(int));
 
     if (other.device) {
-        size_t device_len = strlen(other.device.get()) + 1; // +1 for null terminator
+        size_t device_len = strlen(other.device.get()) + 1;
         device = std::shared_ptr<char[]>(new char[device_len]);
         strncpy(device.get(), other.device.get(), device_len);
     } else {
@@ -79,6 +86,39 @@ float Tensor::get_item(const std::vector<int>& indices) const {
     }
 
     return this->data[index];
+}
+
+void Tensor::backward(std::shared_ptr<Tensor> gradient) {
+    if (!requires_grad) {
+        throw std::runtime_error("Called backward on a tensor that doesn't require gradients");
+    }
+    
+    if (!gradient) {
+        if (size == 1) {
+            float* one_data = new float[1] {1.0f};
+            int* one_shape = new int[1] {1};
+            gradient = std::make_shared<Tensor>(one_data, one_shape, 1);
+        } else {
+            throw std::runtime_error("Gradient must be specified for non-scalar tensors");
+        }
+    }
+    
+    if (grad_fn) {
+        grad_fn->backward(gradient);
+    }
+}
+
+void Tensor::zero_grad() {
+    if (grad) {
+        grad.reset();
+    }
+}
+
+Tensor Tensor::detach() const {
+    Tensor result = *this;
+    result.requires_grad = false;
+    result.grad_fn.reset();
+    return result;
 }
 
 std::shared_ptr<Tensor> Tensor::reshape(const std::vector<int>& new_shape) const {
@@ -421,7 +461,15 @@ Tensor Tensor::operator+(const Tensor& other) const {
     }
 
     if (this_contig.is_cuda()) {
-        return add_tensor_cuda(this_contig, other_contig);
+        Tensor result = add_tensor_cuda(this_contig, other_contig);
+        
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
+        }
+        return result;
     } else {
         float* result_data = new float[this_contig.size];
         add_tensor_cpu(&this_contig, &other_contig, result_data);
@@ -429,9 +477,16 @@ Tensor Tensor::operator+(const Tensor& other) const {
         int* shape_copy = new int[this_contig.ndim];
         memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
 
-        Tensor tensor(result_data, shape_copy, this_contig.ndim);
-        tensor.is_contiguous = true;
-        return tensor;
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
+        }
+        return result;
     }
 }
 
@@ -453,7 +508,15 @@ Tensor Tensor::operator-(const Tensor& other) const {
     }
 
     if (this_contig.is_cuda()) {
-        return sub_tensor_cuda(this_contig, other_contig);
+        Tensor result = sub_tensor_cuda(this_contig, other_contig);
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_sub(this_shared, other_shared);
+        }
+        return result;
     } else {
         float* result_data = new float[this_contig.size];
         sub_tensor_cpu(&this_contig, &other_contig, result_data);
@@ -461,10 +524,38 @@ Tensor Tensor::operator-(const Tensor& other) const {
         int* shape_copy = new int[ndim];
         memcpy(shape_copy, shape.get(), ndim * sizeof(int));
     
-        Tensor tensor(result_data, shape_copy, ndim);
-        tensor.is_contiguous = true;
-        return tensor;
+        Tensor result(result_data, shape_copy, ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_sub(this_shared, other_shared);
+        }
+        return result;
     }
+}
+
+Tensor Tensor::operator-() const {
+    float* result_data = new float[size];
+    for (int i = 0; i < size; i++) {
+        result_data[i] = -data.get()[i];
+    }
+    
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+    
+    Tensor result(result_data, shape_copy, ndim);
+
+    result.requires_grad = this->requires_grad;
+    
+    if (result.requires_grad) {
+        auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+        result.grad_fn = AutogradFunction::make_neg(self_shared);
+    }
+    
+    return result;
 }
 
 Tensor Tensor::operator*(const Tensor& other) const {
@@ -485,6 +576,14 @@ Tensor Tensor::operator*(const Tensor& other) const {
     }
 
     if (this_contig.is_cuda()) {
+        Tensor result = mul_tensor_cuda(this_contig, other_contig);
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
+        }
         return mul_tensor_cuda(this_contig, other_contig);
     } else {
         float* result_data = new float[this_contig.size];
@@ -493,10 +592,86 @@ Tensor Tensor::operator*(const Tensor& other) const {
         int* shape_copy = new int[ndim];
         memcpy(shape_copy, shape.get(), ndim * sizeof(int));
         
-        Tensor tensor(result_data, shape_copy, ndim);
-        tensor.is_contiguous = true;
-        return tensor;
+        Tensor result(result_data, shape_copy, ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
+        }
+        return result;
     }
+}
+
+Tensor Tensor::matmul(const Tensor& other) const {
+    // Vérification du même device
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
+    // Conversion en tenseurs contigus
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
+
+    // Vérification des dimensions compatibles
+    if (this_contig.ndim < 2 || this_contig.ndim > 3 || 
+        other_contig.ndim < 2 || other_contig.ndim > 3) {
+        throw std::runtime_error("Matrix multiplication supports only 2D or 3D tensors");
+    }
+
+    if (this_contig.ndim != other_contig.ndim) {
+        throw std::runtime_error("Both tensors must have same number of dimensions");
+    }
+
+    // Vérification des dimensions internes
+    if (this_contig.shape[this_contig.ndim-1] != other_contig.shape[other_contig.ndim-2]) {
+        throw std::runtime_error("Inner dimensions must match for matrix multiplication. Got " );
+    }
+
+    // Vérification des batch sizes pour les tenseurs 3D
+    if (this_contig.ndim == 3 && this_contig.shape[0] != other_contig.shape[0]) {
+        throw std::runtime_error("Batch sizes must match for 3D tensors");
+    }
+
+    if (this_contig.is_cuda() &&this_contig.ndim == 2) {
+        return matmul_gpu(this_contig, other_contig);
+    }
+
+    if (this_contig.is_cuda() &&this_contig.ndim == 3) {
+        return batch_matmul_gpu(this_contig, other_contig);
+    }
+
+    // Calcul des dimensions du résultat
+    std::vector<int> result_shape(this_contig.ndim);
+    if (this_contig.ndim == 3) {
+        result_shape[0] = this_contig.shape[0]; // batch size
+        result_shape[1] = this_contig.shape[1]; // rows
+        result_shape[2] = other_contig.shape[2]; // cols
+    } else {
+        result_shape[0] = this_contig.shape[0]; // rows
+        result_shape[1] = other_contig.shape[1]; // cols
+    }
+
+    // Allocation du résultat
+    size_t result_size = 1;
+    for (int dim : result_shape) {
+        result_size *= dim;
+    }
+    float* result_data = new float[result_size];
+
+    // Appel à la fonction de multiplication appropriée
+    if (this_contig.ndim == 2) {
+        MatMul_cpu(&this_contig, &other_contig, result_data);
+    } else {
+        BatchMatMul_cpu(&this_contig, &other_contig, result_data);
+    }
+
+    // Création du tenseur résultat
+    Tensor result(result_data, result_shape.data(), result_shape.size());
+    result.is_contiguous = true;
+    return result;
 }
 
 bool Tensor::contiguous() const {
