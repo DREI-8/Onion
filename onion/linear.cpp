@@ -3,6 +3,7 @@
 #include <cstring>
 #include <algorithm> 
 #include <random>
+#include <stdexcept>
 
 Tensor Linear::create_weights(int in_features, int out_features) {
     int weights_shape[] = {in_features, out_features};
@@ -38,8 +39,8 @@ Tensor Linear::create_bias(int in_features, int out_features, bool use_bias) {
 Linear::Linear(int in_features, int out_features, bool use_bias, const char* device_name)
     : weights(create_weights(in_features, out_features)),
       bias(create_bias(in_features, out_features, use_bias)) {
-    weights.to(device_name);
-    bias.to(device_name);
+    weights = weights.to(device_name);
+    bias    = bias.to(device_name);
 }
 
 Tensor Linear::apply(const Tensor& other) const {
@@ -63,6 +64,6 @@ Tensor Linear::apply(const Tensor& other) const {
 }
 
 void Linear::to(const char* device_name) {
-    weights.to(device_name);
-    bias.to(device_name);
+    weights = weights.to(device_name);
+    bias   = bias.to(device_name);
 }
