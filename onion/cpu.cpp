@@ -20,7 +20,7 @@ void elementwise_mul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, fl
     }
 }
 
-void MatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
+void matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
 
     if(tensor1->shape[1] != tensor2->shape[0]) {
         throw std::runtime_error("Matrix dimensions do not match for multiplication.");
@@ -43,7 +43,7 @@ void MatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data
     }
 }
 
-void BatchMatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
+void batch_matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
     // Vérification des dimensions
     if(tensor1->ndim != 3 || tensor2->ndim != 3) {
         throw std::runtime_error("Both tensors must be 3D for batch matrix multiplication.");

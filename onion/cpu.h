@@ -13,8 +13,8 @@ void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int*
 void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
 void sum_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
 void mean_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
-void MatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data);
-void BatchMatMul_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data);
+void matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data);
+void batch_matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data);
 
 
 #endif // CPU_H

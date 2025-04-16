@@ -663,9 +663,9 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
     // Appel à la fonction de multiplication appropriée
     if (this_contig.ndim == 2) {
-        MatMul_cpu(&this_contig, &other_contig, result_data);
+        matmul_tensor_cpu(&this_contig, &other_contig, result_data);
     } else {
-        BatchMatMul_cpu(&this_contig, &other_contig, result_data);
+        batch_matmul_tensor_cpu(&this_contig, &other_contig, result_data);
     }
 
     // Création du tenseur résultat
