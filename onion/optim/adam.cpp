@@ -10,8 +10,19 @@ Adam::Adam(const std::vector<std::shared_ptr<Tensor>>& parameters, float lr, flo
         float* zeros = new float[p->size]();
         int* shape = new int[p->ndim];
         memcpy(shape, p->shape.get(), p->ndim * sizeof(int));
-        velocity.push_back(std::make_shared<Tensor>(zeros, shape, p->ndim));
-        momentum.push_back(std::make_shared<Tensor>(zeros, shape, p->ndim));
+
+        auto v_tensor = std::make_shared<Tensor>(zeros, shape, p->ndim);
+        auto m_tensor = std::make_shared<Tensor>(zeros, shape, p->ndim);
+        v_tensor->is_contiguous = true;
+        m_tensor->is_contiguous = true;
+
+        if (p->is_cuda()) {
+            v_tensor->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+            m_tensor->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+        }
+
+        velocity.push_back(v_tensor);
+        momentum.push_back(m_tensor);
     }
 }
 
@@ -23,18 +34,16 @@ void Adam::step() {
         auto& v = velocity[i];
 
         if (!param->grad) continue;
-        *m = (*m) * beta1 + (*(param->grad)) * (1.0f - beta1);
-        *v = (*v) * beta2 + (*(param->grad)) * (*(param->grad)) * (1.0f - beta2);
+        
+        for (int j = 0; j < m->size; j++) {
+            m->data.get()[j] = m->data.get()[j] * beta1 + param->grad->data.get()[j] * (1.0f - beta1);
+            v->data.get()[j] = v->data.get()[j] * beta2 + param->grad->data.get()[j] * param->grad->data.get()[j] * (1.0f - beta2);
+            
+            float m_hat = m->data.get()[j] / (1.0f - pow(beta1, t));
+            float v_hat = v->data.get()[j] / (1.0f - pow(beta2, t));
+            float denom = sqrt(v_hat) + eps;
 
-        Tensor m_hat = (*m) / (1.0f - pow(beta1, t));
-        Tensor v_hat = (*v) / (1.0f - pow(beta2, t));
-
-        Tensor denom = v_hat;
-        for (int j = 0; j < denom.size; j++) {
-            denom.data[j] = sqrt(denom.data[j]) + eps;
+            param->data.get()[j] -= lr * m_hat / denom;
         }
-        Tensor update = (m_hat / denom) * lr;
-        *param = *param - update;
     }
-
 }
