@@ -255,7 +255,7 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
     } else {
         if (adjusted_axis < 0) adjusted_axis += ndim;
         if (adjusted_axis < 0 || adjusted_axis >= ndim)
-            throw std::runtime_error("Axis out of bounds in max");
+            throw std::runtime_error("Axis out of bounds in min");
     }
 
     std::vector<int> out_shape;
@@ -322,7 +322,7 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
     } else {
         if (adjusted_axis < 0) adjusted_axis += ndim;
         if (adjusted_axis < 0 || adjusted_axis >= ndim)
-            throw std::runtime_error("Axis out of bounds in max");
+            throw std::runtime_error("Axis out of bounds in sum");
     }
 
     std::vector<int> out_shape;
@@ -495,7 +495,7 @@ Tensor Tensor::operator+(float scalar) const {
 
     if (this_contig.is_cuda()) {
         // TODO: Implement CUDA addition with scalar
-        std::runtime_error("CUDA addition with scalar not implemented yet");
+        throw std::runtime_error("CUDA addition with scalar not implemented yet");
     } else {
         float* result_data = new float[this_contig.size];
         add_scalar_tensor_cpu(&this_contig, scalar, result_data);
@@ -525,11 +525,11 @@ Tensor Tensor::operator-(const Tensor& other) const {
     Tensor other_contig = other.to_contiguous();
 
     if (this_contig.size != other_contig.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for substraction");
     }
     for (int i = 0; i < this_contig.ndim; ++i) {
         if (this_contig.shape[i] != other_contig.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for addition");
+            throw std::runtime_error("Tensors must have same shape for substraction");
         }
     }
 
@@ -589,7 +589,7 @@ Tensor Tensor::operator-(float scalar) const {
 
     if (this_contig.is_cuda()) {
         // TODO: Implement CUDA addition with scalar
-        std::runtime_error("CUDA substraction with scalar not implemented yet");
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
     } else {
         float* result_data = new float[this_contig.size];
         sub_scalar_tensor_cpu(&this_contig, scalar, result_data);
@@ -619,11 +619,11 @@ Tensor Tensor::operator*(const Tensor& other) const {
     Tensor other_contig = other.to_contiguous();
 
     if (this_contig.size != other_contig.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for multiplication");
     }
     for (int i = 0; i < this_contig.ndim; ++i) {
         if (this_contig.shape[i] != other_contig.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for addition");
+            throw std::runtime_error("Tensors must have same shape for multiplication");
         }
     }
 
@@ -662,7 +662,7 @@ Tensor Tensor::operator*(float scalar) const {
 
     if (this_contig.is_cuda()) {
         // TODO: Implement CUDA addition with scalar
-        std::runtime_error("CUDA substraction with scalar not implemented yet");
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
     } else {
         float* result_data = new float[this_contig.size];
         mul_scalar_tensor_cpu(&this_contig, scalar, result_data);
@@ -702,7 +702,7 @@ Tensor Tensor::operator/(const Tensor& other) const {
 
     if (this_contig.is_cuda()) {
         // TODO: Implement CUDA division
-        std::runtime_error("CUDA division not implemented yet");
+        throw std::runtime_error("CUDA division not implemented yet");
     } else {
         float* result_data = new float[this_contig.size];
         elementwise_div_tensor_cpu(&this_contig, &other_contig, result_data);
@@ -728,7 +728,7 @@ Tensor Tensor::operator/(float scalar) const {
 
     if (this_contig.is_cuda()) {
         // TODO: Implement CUDA addition with scalar
-        std::runtime_error("CUDA substraction with scalar not implemented yet");
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
     } else {
         float* result_data = new float[this_contig.size];
         div_scalar_tensor_cpu(&this_contig, scalar, result_data);
