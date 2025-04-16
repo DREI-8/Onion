@@ -490,6 +490,32 @@ Tensor Tensor::operator+(const Tensor& other) const {
     }
 }
 
+Tensor Tensor::operator+(float scalar) const {
+    Tensor this_contig = this->to_contiguous();
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA addition with scalar
+        std::runtime_error("CUDA addition with scalar not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        add_scalar_tensor_cpu(&this_contig, scalar, result_data);
+
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
+
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            result.grad_fn = AutogradFunction::make_add_scalar(self_shared, scalar);
+        }
+
+        return result;
+    }
+}
+
 Tensor Tensor::operator-(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");
