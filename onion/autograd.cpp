@@ -172,4 +172,29 @@ static std::shared_ptr<AutogradFunction> make_add_sub_scalar(
     );
 }
 
+static std::shared_ptr<AutogradFunction> make_mul_scalar(
+    const std::shared_ptr<Tensor>& a,
+    float scalar
+) {
+    auto backward_fn = [a, scalar](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            auto grad_a = std::make_shared<Tensor>(*grad * scalar);
+            if (a->grad) {
+                *a->grad = *a->grad + *grad_a;
+            } else {
+                a->grad = grad_a;
+            }
+            
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
+        }
+    };
+
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a},
+        backward_fn
+    );
+}
+
 // the rest to be added
