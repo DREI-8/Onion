@@ -683,7 +683,7 @@ Tensor Tensor::operator*(float scalar) const {
     }
 }
 
-Tensor Tensor::operator*(float scalar) const {
+Tensor Tensor::operator/(float scalar) const {
     Tensor this_contig = this->to_contiguous();
 
     if (this_contig.is_cuda()) {
