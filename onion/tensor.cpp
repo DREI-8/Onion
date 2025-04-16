@@ -654,7 +654,7 @@ Tensor Tensor::operator*(const Tensor& other) const {
             auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
         }
-        return mul_tensor_cuda(this_contig, other_contig);
+        return result;
     } else {
         float* result_data = new float[this_contig.size];
         elementwise_mul_tensor_cpu(&this_contig, &other_contig, result_data);
