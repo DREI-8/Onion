@@ -11,8 +11,8 @@ class TestOptimizers(unittest.TestCase):
         grad_data = np.array([0.1, 0.2, 0.3], dtype=np.float32)
         
         # Configure Onion
-        onion_param = Tensor(param_data.copy())
-        onion_param.grad = Tensor(grad_data.copy())
+        onion_param = Tensor(param_data.copy(), requires_grad=True)
+        onion_param.set_grad(Tensor(grad_data.copy()))
         onion_adam = Adam([onion_param], lr=0.01, beta1=0.9, beta2=0.999, eps=1e-8)
         
         # Configure PyTorch
@@ -34,7 +34,7 @@ class TestOptimizers(unittest.TestCase):
         param_data = np.array([1.0, 2.0, 3.0], dtype=np.float32)
         
         # Configure Onion
-        onion_param = Tensor(param_data.copy())
+        onion_param = Tensor(param_data.copy(), requires_grad=True)
         onion_adam = Adam([onion_param], lr=0.1, beta1=0.9, beta2=0.999, eps=1e-8)
         
         # Configure PyTorch
@@ -46,7 +46,7 @@ class TestOptimizers(unittest.TestCase):
             grad_data = np.array([0.1, 0.2, 0.3], dtype=np.float32) * (i + 1)
 
             # Update gradients
-            onion_param.grad = Tensor(grad_data.copy())
+            onion_param.set_grad(Tensor(grad_data.copy()))
             torch_param.grad = torch.tensor(grad_data.copy())
 
             onion_adam.step()
