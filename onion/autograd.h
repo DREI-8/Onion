@@ -56,6 +56,11 @@ public:
         const std::shared_ptr<Tensor>& a,
         float scalar
     );
+
+    static std::shared_ptr<AutogradFunction> make_div_scalar(
+        const std::shared_ptr<Tensor>& a,
+        float scalar
+    );
     
     // We can add more functions here as needed
 };
