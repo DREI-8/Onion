@@ -138,6 +138,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
                     return py::none();
                 }
             })
+		.def("set_grad", &Tensor::set_grad, py::arg("new_grad"), "Set gradient tensor")
         .def("backward", [](Tensor& t, py::object gradient) {
             if (gradient.is_none()) {
                 t.backward(nullptr);

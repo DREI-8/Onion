@@ -88,6 +88,24 @@ float Tensor::get_item(const std::vector<int>& indices) const {
     return this->data[index];
 }
 
+void Tensor::set_grad(const std::shared_ptr<Tensor> new_grad) {
+    if (!requires_grad) {
+        throw std::runtime_error("Cannot set gradient for a tensor that doesn't require gradients");
+    }
+
+    if (new_grad->ndim != this->ndim) {
+        throw std::runtime_error("Gradient must have the same number of dimensions as the tensor");
+    }
+
+    for (int i = 0; i < this->ndim; i++) {
+        if (new_grad->shape[i] != this->shape[i]) {
+            throw std::runtime_error("Gradient must have the same shape as the tensor");
+        }
+    }
+
+    this->grad = new_grad;
+}
+
 void Tensor::backward(std::shared_ptr<Tensor> gradient) {
     if (!requires_grad) {
         throw std::runtime_error("Called backward on a tensor that doesn't require gradients");

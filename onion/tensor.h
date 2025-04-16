@@ -42,6 +42,7 @@ class Tensor : public std::enable_shared_from_this<Tensor> {
         Tensor operator/(float scalar) const;
         Tensor matmul(const Tensor& other) const;
 
+        void set_grad(const std::shared_ptr<Tensor> new_grad);
         void backward(std::shared_ptr<Tensor> gradient = nullptr);
         void zero_grad();
         Tensor detach() const;
