@@ -4,7 +4,7 @@
 #include <memory>
 #include <vector>
 
-class Tensor {
+class Tensor : public std::enable_shared_from_this<Tensor> {
     public:
         std::shared_ptr<float[]> data;
         std::shared_ptr<int[]> strides;

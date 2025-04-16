@@ -462,11 +462,11 @@ Tensor Tensor::operator+(const Tensor& other) const {
 
     if (this_contig.is_cuda()) {
         Tensor result = add_tensor_cuda(this_contig, other_contig);
-
+        
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
         }
         return result;
@@ -482,8 +482,8 @@ Tensor Tensor::operator+(const Tensor& other) const {
 
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
         }
         return result;
@@ -512,8 +512,8 @@ Tensor Tensor::operator-(const Tensor& other) const {
 
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_sub(this_shared, other_shared);
         }
         return result;
@@ -529,8 +529,8 @@ Tensor Tensor::operator-(const Tensor& other) const {
 
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_sub(this_shared, other_shared);
         }
         return result;
@@ -547,11 +547,11 @@ Tensor Tensor::operator-() const {
     memcpy(shape_copy, shape.get(), ndim * sizeof(int));
     
     Tensor result(result_data, shape_copy, ndim);
-    
+
     result.requires_grad = this->requires_grad;
     
     if (result.requires_grad) {
-        auto self_shared = std::make_shared<Tensor>(*this);
+        auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
         result.grad_fn = AutogradFunction::make_neg(self_shared);
     }
     
@@ -580,9 +580,9 @@ Tensor Tensor::operator*(const Tensor& other) const {
 
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
-            result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
         }
         return mul_tensor_cuda(this_contig, other_contig);
     } else {
@@ -597,9 +597,9 @@ Tensor Tensor::operator*(const Tensor& other) const {
 
         result.requires_grad = this->requires_grad || other.requires_grad;
         if (result.requires_grad) {
-            auto this_shared = std::make_shared<Tensor>(*this);
-            auto other_shared = std::make_shared<Tensor>(other);
-            result.grad_fn = AutogradFunction::make_add(this_shared, other_shared);
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
         }
         return result;
     }
