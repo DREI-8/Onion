@@ -44,18 +44,17 @@ Linear::Linear(int in_features, int out_features, bool use_bias, const char* dev
 
 Tensor Linear::apply(const Tensor& other) const {
 
-    if (other.shape)
 
     if (other.ndim ==2 && other.shape[1] != weights.shape[0]){
         throw std::invalid_argument("Input tensor shape does not match weights shape.");
     }
-    else if(other.ndim == 3 && other.shape[2] != weights.shape[0]){
+    if(other.ndim == 3 && other.shape[2] != weights.shape[0]){
         throw std::invalid_argument("Input tensor shape does not match weights shape.");
     }
-    else{
+    if (other.ndim > 3 || other.ndim < 2) {
         throw std::invalid_argument("Input tensor must be 2D or 3D.");
     }
-    
+
     Tensor result = other.matmul(weights);
         if (bias.size > 0) {
             result = result + bias; 
