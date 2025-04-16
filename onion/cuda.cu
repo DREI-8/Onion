@@ -771,59 +771,110 @@ return result;
 }
 
 __global__ void batch_matmul_kernel(const float* a, const float* b, float* result, 
-                                  int batch_size, int m, int n, int k) {
-    int batch = blockIdx.z;
-    int row = blockIdx.y * blockDim.y + threadIdx.y;
-    int col = blockIdx.x * blockDim.x + threadIdx.x;
-    
-    if (batch < batch_size && row < m && col < k) {
-        float sum = 0.0f;
-        for (int i = 0; i < n; ++i) {
-            int a_idx = batch * m * n + row * n + i;
-            int b_idx = batch * n * k + i * k + col;
-            sum += a[a_idx] * b[b_idx];
-        }
-        int result_idx = batch * m * k + row * k + col;
-        result[result_idx] = sum;
-    }
+    int batch_size, int m, int n, int k,
+    int a_ndim, int b_ndim) {
+int batch = blockIdx.z;
+int row = blockIdx.y * blockDim.y + threadIdx.y;
+int col = blockIdx.x * blockDim.x + threadIdx.x;
+
+if (batch < batch_size && row < m && col < k) {
+float sum = 0.0f;
+for (int i = 0; i < n; ++i) {
+// Calcul des indices en fonction de la dimension des tenseurs
+int a_idx = (a_ndim == 3) ? (batch * m * n + row * n + i) : (row * n + i);
+int b_idx = (b_ndim == 3) ? (batch * n * k + i * k + col) : (i * k + col);
+sum += a[a_idx] * b[b_idx];
+}
+int result_idx = batch * m * k + row * k + col;
+result[result_idx] = sum;
+}
 }
 
 Tensor batch_matmul_gpu(const Tensor& a, const Tensor& b) {
-    // Vérification des dimensions
-    if (a.ndim != 3 || b.ndim != 3 || a.shape[0] != b.shape[0] || a.shape[2] != b.shape[1]) {
-        throw std::runtime_error("Invalid dimensions for batch matrix multiplication");
-    }
-    
-    int batch_size = a.shape[0];
-    int m = a.shape[1];
-    int n = a.shape[2];
-    int k = b.shape[2];
-    
-    // Allocation mémoire pour le résultat sur le GPU
-    float* result_data;
-    cudaMalloc(&result_data, batch_size * m * k * sizeof(float));
-    
-    // Configuration des blocs et threads
-    dim3 block_size(16, 16);
-    dim3 num_blocks((k + block_size.x - 1) / block_size.x,
-                    (m + block_size.y - 1) / block_size.y,
-                    batch_size);
-    
-    // Lancement du kernel
-    batch_matmul_kernel<<<num_blocks, block_size>>>(a.data.get(), b.data.get(), result_data, 
-                                                  batch_size, m, n, k);
-    cudaDeviceSynchronize();
-    
-    // Création du tensor résultat
-    int* result_shape = new int[3]{batch_size, m, k};
-    
-    auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
-    std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
-    
-    Tensor result(shared_result, result_shape, 3);
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
-    
-    return result;
+// Vérification des dimensions minimales
+if (a.ndim < 2 || b.ndim < 2) {
+throw std::runtime_error("Both tensors must be at least 2D for matrix multiplication.");
+}
+
+// Extraction des dimensions
+int M, N1, N2, K;
+
+// Dimensions pour a
+if (a.ndim == 3) {
+M = a.shape[1];
+N1 = a.shape[2];
+} else { // 2D
+M = a.shape[0];
+N1 = a.shape[1];
+}
+
+// Dimensions pour b
+if (b.ndim == 3) {
+N2 = b.shape[1];
+K = b.shape[2];
+} else { // 2D
+N2 = b.shape[0];
+K = b.shape[1];
+}
+
+// Vérification compatibilité dimensions internes
+if (N1 != N2) {
+throw std::runtime_error("Matrix dimensions do not match for multiplication.");
+}
+
+// Détermination de la batch size
+int batch_size;
+if (a.ndim == 3 && b.ndim == 3) {
+if (a.shape[0] != b.shape[0]) {
+throw std::runtime_error("Batch sizes do not match.");
+}
+batch_size = a.shape[0];
+} else {
+if (a.ndim == 3) {
+batch_size = a.shape[0];
+} else if (b.ndim == 3) {
+batch_size = b.shape[0];
+} else {
+batch_size = 1; // Les deux sont 2D
+}
+}
+
+// Allocation mémoire pour le résultat
+float* result_data;
+cudaMalloc(&result_data, batch_size * M * K * sizeof(float));
+
+// Configuration du kernel
+dim3 block_size(16, 16);
+dim3 num_blocks(
+(K + block_size.x - 1) / block_size.x,
+(M + block_size.y - 1) / block_size.y,
+batch_size
+);
+
+// Lancement du kernel avec les dimensions des tenseurs
+batch_matmul_kernel<<<num_blocks, block_size>>>(
+a.data.get(), b.data.get(), result_data,
+batch_size, M, N1, K,
+a.ndim, b.ndim
+);
+cudaDeviceSynchronize();
+
+// Création du tensor résultat avec la bonne dimension
+int result_ndim = (a.ndim == 3 || b.ndim == 3) ? 3 : 2;
+int* result_shape;
+if (result_ndim == 3) {
+result_shape = new int[3]{batch_size, M, K};
+} else {
+result_shape = new int[2]{M, K};
+}
+
+auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
+std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
+
+Tensor result(shared_result, result_shape, result_ndim);
+result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+
+return result;
 }
 
 #else

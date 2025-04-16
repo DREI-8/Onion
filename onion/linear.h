@@ -14,7 +14,7 @@ public:
     Tensor bias;
 
     static Tensor create_weights(int in_features, int out_features);
-    static Tensor create_bias(int out_features, bool use_bias);
+    static Tensor create_bias(int in_features, int out_features, bool use_bias);
 
 };
 
