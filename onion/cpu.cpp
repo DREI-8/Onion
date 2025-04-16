@@ -20,6 +20,12 @@ void elementwise_mul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, fl
     }
 }
 
+void elementwise_div_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
+    for (int i = 0; i <tensor1->size; i++) {
+        result_data[i] = tensor1->data[i] / tensor2->data[i];
+    }
+}
+
 void matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
 
     if(tensor1->shape[1] != tensor2->shape[0]) {
@@ -88,6 +94,30 @@ void batch_matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float
 void assign_tensor_cpu(const Tensor* tensor, float* result_data) {
     for (int i = 0; i <tensor->size; i++) {
         result_data[i] = tensor->data[i];
+    }
+}
+
+void add_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data) {
+    for (int i = 0; i <tensor->size; i++) {
+        result_data[i] = tensor->data[i] + scalar;
+    }
+}
+
+void sub_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data) {
+    for (int i = 0; i <tensor->size; i++) {
+        result_data[i] = tensor->data[i] - scalar;
+    }
+}
+
+void mul_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data) {
+    for (int i = 0; i <tensor->size; i++) {
+        result_data[i] = tensor->data[i] * scalar;
+    }
+}
+
+void div_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data) {
+    for (int i = 0; i <tensor->size; i++) {
+        result_data[i] = tensor->data[i] / scalar;
     }
 }
 

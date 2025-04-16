@@ -73,6 +73,18 @@ class TestTensor(unittest.TestCase):
                     
                     # Compare with PyTorch
                     self._compare_with_torch(result, np_data, axis, keepdims, op_name)
+    def _compare_with_nan(self, a, b, atol=1e-6):
+        """Compare two arrays, allowing for NaN values."""
+        a_nan = np.isnan(a)
+        b_nan = np.isnan(b)
+        if not np.array_equal(a_nan, b_nan):
+            return False
+        
+        return np.allclose(
+            a[~a_nan],  
+            b[~b_nan],  
+            atol=atol
+        )
 
     def test_reductions_cpu(self):
         """Test reduction operations on CPU."""
@@ -106,7 +118,8 @@ class TestTensor(unittest.TestCase):
         ops = [
             ('add', lambda a, b: a + b),
             ('sub', lambda a, b: a - b),
-            ('mul', lambda a, b: a * b)
+            ('mul', lambda a, b: a * b),
+            ('div', lambda a, b: a / b)
         ]
         
         test_data = [
@@ -139,8 +152,77 @@ class TestTensor(unittest.TestCase):
                         result_torch = op_func(a_torch, b_torch).cpu().numpy()
                         
                         # Comparison
-                        self.assertTrue(np.allclose(result_onion.numpy(), result_torch, atol=1e-6))
+                        self.assertTrue(self._compare_with_nan(result_onion.numpy(), result_torch, atol=1e-6))
 
+    def test_scalar_arithmetic_consistency(self):
+        """Test arithmetic operations between tensors and scalars against PyTorch."""
+        # tensor op scalar operations
+        ops = [
+            ('add', lambda t, s: t + s),
+            ('sub', lambda t, s: t - s),
+            ('mul', lambda t, s: t * s),
+            ('div', lambda t, s: t / s)
+        ]
+        
+        # scalar op tensor operations
+        r_ops = [
+            ('radd', lambda s, t: s + t),
+            ('rsub', lambda s, t: s - t),
+            ('rmul', lambda s, t: s * t),
+            # ('rdiv', lambda s, t: s / t)  # Not implemented yet in Onion
+        ]
+        
+        # Test scalars
+        scalars = [2.0, 0.5, -1.0]
+        
+        # Tensors Data
+        test_data = [
+            self.data_2d,
+            self.data_1d,
+            self.data_non_contig
+        ]
+        
+        for device in ["cpu", "cuda"] if is_cuda_available() else ["cpu"]:
+            if device == "cuda" and not is_cuda_available():
+                continue
+                
+            for data_np in test_data:
+                # Create tensors
+                t_onion = Tensor(data_np).to(device)
+                t_torch = torch.from_numpy(data_np).to(device)
+                
+                # Test tensor op scalar
+                for op_name, op_func in ops:
+                    for scalar in scalars:
+                        with self.subTest(device=device, op=op_name, scalar=scalar):
+                            # Onion operation
+                            result_onion = op_func(t_onion, scalar)
+                            if result_onion.is_cuda():
+                                result_onion = result_onion.to("cpu")
+                            
+                            # PyTorch operation
+                            result_torch = op_func(t_torch, scalar).cpu().numpy()
+                            
+                            # Comparison
+                            self.assertTrue(np.allclose(result_onion.numpy(), result_torch, atol=1e-6),
+                                        f"Mismatch for {op_name} with scalar={scalar}")
+                
+                # Test scalar op tensor
+                for op_name, op_func in r_ops:
+                    for scalar in scalars:
+                        with self.subTest(device=device, op=op_name, scalar=scalar):
+                            # Onion operation
+                            result_onion = op_func(scalar, t_onion)
+                            if result_onion.is_cuda():
+                                result_onion = result_onion.to("cpu")
+                            
+                            # PyTorch operation
+                            result_torch = op_func(scalar, t_torch).cpu().numpy()
+                            
+                            # Comparison
+                            self.assertTrue(np.allclose(result_onion.numpy(), result_torch, atol=1e-6),
+                                        f"Mismatch for {op_name} with scalar={scalar}")
+                        
     def test_edge_cases(self):
         """Test edge cases and error handling."""
         # Invalid axis

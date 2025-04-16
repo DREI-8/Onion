@@ -88,6 +88,24 @@ float Tensor::get_item(const std::vector<int>& indices) const {
     return this->data[index];
 }
 
+void Tensor::set_grad(const std::shared_ptr<Tensor> new_grad) {
+    if (!requires_grad) {
+        throw std::runtime_error("Cannot set gradient for a tensor that doesn't require gradients");
+    }
+
+    if (new_grad->ndim != this->ndim) {
+        throw std::runtime_error("Gradient must have the same number of dimensions as the tensor");
+    }
+
+    for (int i = 0; i < this->ndim; i++) {
+        if (new_grad->shape[i] != this->shape[i]) {
+            throw std::runtime_error("Gradient must have the same shape as the tensor");
+        }
+    }
+
+    this->grad = new_grad;
+}
+
 void Tensor::backward(std::shared_ptr<Tensor> gradient) {
     if (!requires_grad) {
         throw std::runtime_error("Called backward on a tensor that doesn't require gradients");
@@ -255,7 +273,7 @@ std::shared_ptr<Tensor> Tensor::min(int axis, bool keepdims) const {
     } else {
         if (adjusted_axis < 0) adjusted_axis += ndim;
         if (adjusted_axis < 0 || adjusted_axis >= ndim)
-            throw std::runtime_error("Axis out of bounds in max");
+            throw std::runtime_error("Axis out of bounds in min");
     }
 
     std::vector<int> out_shape;
@@ -322,7 +340,7 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
     } else {
         if (adjusted_axis < 0) adjusted_axis += ndim;
         if (adjusted_axis < 0 || adjusted_axis >= ndim)
-            throw std::runtime_error("Axis out of bounds in max");
+            throw std::runtime_error("Axis out of bounds in sum");
     }
 
     std::vector<int> out_shape;
@@ -490,6 +508,32 @@ Tensor Tensor::operator+(const Tensor& other) const {
     }
 }
 
+Tensor Tensor::operator+(float scalar) const {
+    Tensor this_contig = this->to_contiguous();
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA addition with scalar
+        throw std::runtime_error("CUDA addition with scalar not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        add_scalar_tensor_cpu(&this_contig, scalar, result_data);
+
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
+
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            result.grad_fn = AutogradFunction::make_add_sub_scalar(self_shared, scalar);
+        }
+
+        return result;
+    }
+}
+
 Tensor Tensor::operator-(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");
@@ -499,11 +543,11 @@ Tensor Tensor::operator-(const Tensor& other) const {
     Tensor other_contig = other.to_contiguous();
 
     if (this_contig.size != other_contig.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for substraction");
     }
     for (int i = 0; i < this_contig.ndim; ++i) {
         if (this_contig.shape[i] != other_contig.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for addition");
+            throw std::runtime_error("Tensors must have same shape for substraction");
         }
     }
 
@@ -558,6 +602,32 @@ Tensor Tensor::operator-() const {
     return result;
 }
 
+Tensor Tensor::operator-(float scalar) const {
+    Tensor this_contig = this->to_contiguous();
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA addition with scalar
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        sub_scalar_tensor_cpu(&this_contig, scalar, result_data);
+
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
+
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            result.grad_fn = AutogradFunction::make_add_sub_scalar(self_shared, scalar);
+        }
+
+        return result;
+    }
+}
+
 Tensor Tensor::operator*(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");
@@ -567,11 +637,11 @@ Tensor Tensor::operator*(const Tensor& other) const {
     Tensor other_contig = other.to_contiguous();
 
     if (this_contig.size != other_contig.size) {
-        throw std::runtime_error("Tensors must have same size for addition");
+        throw std::runtime_error("Tensors must have same size for multiplication");
     }
     for (int i = 0; i < this_contig.ndim; ++i) {
         if (this_contig.shape[i] != other_contig.shape[i]) {
-            throw std::runtime_error("Tensors must have same shape for addition");
+            throw std::runtime_error("Tensors must have same shape for multiplication");
         }
     }
 
@@ -584,7 +654,7 @@ Tensor Tensor::operator*(const Tensor& other) const {
             auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
         }
-        return mul_tensor_cuda(this_contig, other_contig);
+        return result;
     } else {
         float* result_data = new float[this_contig.size];
         elementwise_mul_tensor_cpu(&this_contig, &other_contig, result_data);
@@ -601,6 +671,98 @@ Tensor Tensor::operator*(const Tensor& other) const {
             auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
             result.grad_fn = AutogradFunction::make_mul(this_shared, other_shared);
         }
+        return result;
+    }
+}
+
+Tensor Tensor::operator*(float scalar) const {
+    Tensor this_contig = this->to_contiguous();
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA addition with scalar
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        mul_scalar_tensor_cpu(&this_contig, scalar, result_data);
+
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
+
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            result.grad_fn = AutogradFunction::make_mul_scalar(self_shared, scalar);
+        }
+
+        return result;
+    }
+}
+
+Tensor Tensor::operator/(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
+
+    if (this_contig.size != other_contig.size) {
+        throw std::runtime_error("Tensors must have same size for division");
+    }
+    for (int i = 0; i < this_contig.ndim; ++i) {
+        if (this_contig.shape[i] != other_contig.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for division");
+        }
+    }
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA division
+        throw std::runtime_error("CUDA division not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        elementwise_div_tensor_cpu(&this_contig, &other_contig, result_data);
+        
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+        
+        Tensor result(result_data, shape_copy, ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_div(this_shared, other_shared);
+        }
+        return result;
+    }
+}
+
+Tensor Tensor::operator/(float scalar) const {
+    Tensor this_contig = this->to_contiguous();
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA addition with scalar
+        throw std::runtime_error("CUDA substraction with scalar not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        div_scalar_tensor_cpu(&this_contig, scalar, result_data);
+
+        int* shape_copy = new int[this_contig.ndim];
+        memcpy(shape_copy, this_contig.shape.get(), this_contig.ndim * sizeof(int));
+
+        Tensor result(result_data, shape_copy, this_contig.ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            result.grad_fn = AutogradFunction::make_div_scalar(self_shared, scalar);
+        }
+
         return result;
     }
 }
