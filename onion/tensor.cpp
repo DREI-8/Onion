@@ -683,6 +683,46 @@ Tensor Tensor::operator*(float scalar) const {
     }
 }
 
+Tensor Tensor::operator/(const Tensor& other) const {
+    if (strcmp(this->device.get(), other.device.get()) != 0) {
+        throw std::runtime_error("Tensors must be on the same device");
+    }
+
+    Tensor this_contig = this->to_contiguous();
+    Tensor other_contig = other.to_contiguous();
+
+    if (this_contig.size != other_contig.size) {
+        throw std::runtime_error("Tensors must have same size for division");
+    }
+    for (int i = 0; i < this_contig.ndim; ++i) {
+        if (this_contig.shape[i] != other_contig.shape[i]) {
+            throw std::runtime_error("Tensors must have same shape for division");
+        }
+    }
+
+    if (this_contig.is_cuda()) {
+        // TODO: Implement CUDA division
+        std::runtime_error("CUDA division not implemented yet");
+    } else {
+        float* result_data = new float[this_contig.size];
+        elementwise_div_tensor_cpu(&this_contig, &other_contig, result_data);
+        
+        int* shape_copy = new int[ndim];
+        memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+        
+        Tensor result(result_data, shape_copy, ndim);
+        result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto this_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(const_cast<Tensor&>(other).shared_from_this());
+            result.grad_fn = AutogradFunction::make_div(this_shared, other_shared);
+        }
+        return result;
+    }
+}
+
 Tensor Tensor::operator/(float scalar) const {
     Tensor this_contig = this->to_contiguous();
 
