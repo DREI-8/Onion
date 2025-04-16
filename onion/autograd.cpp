@@ -197,7 +197,7 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_div(
     );
 }
 
-static std::shared_ptr<AutogradFunction> make_add_sub_scalar(
+std::shared_ptr<AutogradFunction> make_add_sub_scalar(
     const std::shared_ptr<Tensor>& a,
     float scalar
 ) {
@@ -221,7 +221,7 @@ static std::shared_ptr<AutogradFunction> make_add_sub_scalar(
     );
 }
 
-static std::shared_ptr<AutogradFunction> make_mul_scalar(
+std::shared_ptr<AutogradFunction> make_mul_scalar(
     const std::shared_ptr<Tensor>& a,
     float scalar
 ) {
@@ -246,7 +246,7 @@ static std::shared_ptr<AutogradFunction> make_mul_scalar(
     );
 }
 
-static std::shared_ptr<AutogradFunction> make_div_scalar(
+std::shared_ptr<AutogradFunction> make_div_scalar(
     const std::shared_ptr<Tensor>& a,
     float scalar
 ) {

@@ -87,6 +87,7 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("__sub__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator-), "Subtract two tensors")
 		.def("__neg__", static_cast<Tensor (Tensor::*)() const>(&Tensor::operator-), "Negate a tensor")
 		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
+		.def("__truediv__", &Tensor::operator/, "Divide two tensors")
 		.def("matmul", &Tensor::matmul, "Matrix multiplication between two tensors")
         .def("__matmul__", &Tensor::matmul, "Matrix multiplication operator (@ in Python)")
 		.def("to", [](const Tensor& tensor, const std::string& device) {
