@@ -537,6 +537,27 @@ Tensor Tensor::operator-(const Tensor& other) const {
     }
 }
 
+Tensor Tensor::operator-() const {
+    float* result_data = new float[size];
+    for (int i = 0; i < size; i++) {
+        result_data[i] = -data.get()[i];
+    }
+    
+    int* shape_copy = new int[ndim];
+    memcpy(shape_copy, shape.get(), ndim * sizeof(int));
+    
+    Tensor result(result_data, shape_copy, ndim);
+    
+    result.requires_grad = this->requires_grad;
+    
+    if (result.requires_grad) {
+        auto self_shared = std::make_shared<Tensor>(*this);
+        result.grad_fn = AutogradFunction::make_neg(self_shared);
+    }
+    
+    return result;
+}
+
 Tensor Tensor::operator*(const Tensor& other) const {
     if (strcmp(this->device.get(), other.device.get()) != 0) {
         throw std::runtime_error("Tensors must be on the same device");

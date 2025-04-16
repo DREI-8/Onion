@@ -33,6 +33,7 @@ class Tensor {
 
         Tensor operator+(const Tensor& other) const;
         Tensor operator-(const Tensor& other) const;
+        Tensor operator-() const;
         Tensor operator*(const Tensor& other) const;
         Tensor matmul(const Tensor& other) const;
 
