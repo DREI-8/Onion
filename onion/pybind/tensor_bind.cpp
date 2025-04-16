@@ -83,13 +83,25 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("min", &Tensor::min, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the minimum value along an axis")
 		.def("sum", &Tensor::sum, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the sum along an axis")
 		.def("mean", &Tensor::mean, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the mean along an axis")
-		.def("__add__", &Tensor::operator+, "Add two tensors")
+		
+		.def("__add__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator+), "Add two tensors")
+		.def("__add__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator+), "Add scalar to tensor")
+		.def("__radd__", [](const Tensor& t, float scalar) { return t + scalar; }, "Add tensor to scalar")
 		.def("__sub__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator-), "Subtract two tensors")
+		.def("__sub__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator-), "Subtract scalar from tensor")
+		.def("__rsub__", [](const Tensor& t, float scalar) { return -t + scalar; }, "Subtract tensor from scalar")
 		.def("__neg__", static_cast<Tensor (Tensor::*)() const>(&Tensor::operator-), "Negate a tensor")
-		.def("__mul__", &Tensor::operator*, "Multiply two tensors")
-		.def("__truediv__", &Tensor::operator/, "Divide two tensors")
+		.def("__mul__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator*), "Multiply two tensors")
+		.def("__mul__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator*), "Multiply tensor by scalar")
+		.def("__rmul__", [](const Tensor& t, float scalar) { return t * scalar; }, "Multiply scalar by tensor")
+		.def("__truediv__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator/), "Divide two tensors")
+		.def("__truediv__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator/), "Divide tensor by scalar")
+		.def("__rtruediv__", [](const Tensor& t, float scalar) { 
+			throw std::runtime_error("Division of scalar by tensor is not supported yet");
+		 }, "Divide scalar by tensor")
 		.def("matmul", &Tensor::matmul, "Matrix multiplication between two tensors")
         .def("__matmul__", &Tensor::matmul, "Matrix multiplication operator (@ in Python)")
+		
 		.def("to", [](const Tensor& tensor, const std::string& device) {
 			return tensor.to(device.c_str());
 		}, "Move tensor to the specified device (cpu or cuda)")
