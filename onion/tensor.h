@@ -35,6 +35,7 @@ class Tensor : public std::enable_shared_from_this<Tensor> {
         Tensor operator+(float scalar) const;
         Tensor operator-(const Tensor& other) const;
         Tensor operator-() const;
+        Tensor operator-(float scalar) const;
         Tensor operator*(const Tensor& other) const;
         Tensor matmul(const Tensor& other) const;
 

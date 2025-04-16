@@ -97,6 +97,12 @@ void add_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_dat
     }
 }
 
+void sub_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data) {
+    for (int i = 0; i <tensor->size; i++) {
+        result_data[i] = tensor->data[i] - scalar;
+    }
+}
+
 void transpose_2d_cpu(const Tensor* tensor, float* result_data) {
     int rows = tensor->shape[0];
     int cols = tensor->shape[1];

@@ -38,30 +38,6 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_add(
     );
 }
 
-static std::shared_ptr<AutogradFunction> make_add_scalar(
-    const std::shared_ptr<Tensor>& a,
-    float scalar
-) {
-    auto backward_fn = [a](const std::shared_ptr<Tensor>& grad) {
-        if (a->requires_grad) {
-            if (a->grad) {
-                *a->grad = *a->grad + *grad;
-            } else {
-                a->grad = std::make_shared<Tensor>(*grad);
-            }
-            
-            if (a->grad_fn) {
-                a->grad_fn->backward(a->grad);
-            }
-        }
-    };
-
-    return std::make_shared<AutogradFunction>(
-        std::vector<std::shared_ptr<Tensor>>{a},
-        backward_fn
-    );
-}
-
 std::shared_ptr<AutogradFunction> AutogradFunction::make_sub(
     const std::shared_ptr<Tensor>& a,
     const std::shared_ptr<Tensor>& b
@@ -168,6 +144,30 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_mul(
     
     return std::make_shared<AutogradFunction>(
         std::vector<std::shared_ptr<Tensor>>{a, b},
+        backward_fn
+    );
+}
+
+static std::shared_ptr<AutogradFunction> make_add_sub_scalar(
+    const std::shared_ptr<Tensor>& a,
+    float scalar
+) {
+    auto backward_fn = [a](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            if (a->grad) {
+                *a->grad = *a->grad + *grad;
+            } else {
+                a->grad = std::make_shared<Tensor>(*grad);
+            }
+            
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
+        }
+    };
+
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a},
         backward_fn
     );
 }

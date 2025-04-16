@@ -11,6 +11,7 @@ void batch_matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float
 void assign_tensor_cpu(const Tensor* tensor, float* result_data);
 
 void add_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data);
+void sub_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_data);
 
 void transpose_2d_cpu(const Tensor* tensor, float* result_data);
 void transpose_3d_cpu(const Tensor* tensor, float* result_data);
