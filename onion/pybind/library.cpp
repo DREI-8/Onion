@@ -1,6 +1,7 @@
 #include "pybind_common.h"
 #include <pybind11/pybind11.h>
 
+
 namespace py = pybind11;
 
 PYBIND11_MODULE(onion, m) {
@@ -12,4 +13,5 @@ PYBIND11_MODULE(onion, m) {
 
 	init_tensor(m);
 	init_optim(m);
+	init_linear(m);
 }

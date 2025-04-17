@@ -777,63 +777,85 @@ Tensor Tensor::matmul(const Tensor& other) const {
     Tensor this_contig = this->to_contiguous();
     Tensor other_contig = other.to_contiguous();
 
-    // Vérification des dimensions compatibles
-    if (this_contig.ndim < 2 || this_contig.ndim > 3 || 
-        other_contig.ndim < 2 || other_contig.ndim > 3) {
-        throw std::runtime_error("Matrix multiplication supports only 2D or 3D tensors");
+    // Vérification des dimensions minimales
+    if (this_contig.ndim < 2 || other_contig.ndim < 2) {
+        throw std::runtime_error("Both tensors must be at least 2D for matrix multiplication.");
     }
 
-    if (this_contig.ndim != other_contig.ndim) {
-        throw std::runtime_error("Both tensors must have same number of dimensions");
+    if (this_contig.ndim > 3 || other_contig.ndim > 3) {
+        throw std::runtime_error("Only 2D and 3D tensors are supported for matrix multiplication.");
     }
 
-    // Vérification des dimensions internes
-    if (this_contig.shape[this_contig.ndim-1] != other_contig.shape[other_contig.ndim-2]) {
-        throw std::runtime_error("Inner dimensions must match for matrix multiplication. Got " );
+    // Extraction des dimensions
+    int M, N1, N2, K;
+
+    // Dimensions pour this_contig
+    if (this_contig.ndim == 3) {
+        M = this_contig.shape[1];
+        N1 = this_contig.shape[2];
+    } else { // 2D
+        M = this_contig.shape[0];
+        N1 = this_contig.shape[1];
     }
 
-    // Vérification des batch sizes pour les tenseurs 3D
-    if (this_contig.ndim == 3 && this_contig.shape[0] != other_contig.shape[0]) {
-        throw std::runtime_error("Batch sizes must match for 3D tensors");
+    // Dimensions pour other_contig
+    if (other_contig.ndim == 3) {
+        N2 = other_contig.shape[1];
+        K = other_contig.shape[2];
+    } else { // 2D
+        N2 = other_contig.shape[0];
+        K = other_contig.shape[1];
     }
 
-    if (this_contig.is_cuda() &&this_contig.ndim == 2) {
-        return matmul_gpu(this_contig, other_contig);
+    // Vérification compatibilité dimensions internes
+    if (N1 != N2) {
+        throw std::runtime_error("Inner dimensions must match for matrix multiplication.");
     }
 
-    if (this_contig.is_cuda() &&this_contig.ndim == 3) {
+    // Détermination de la batch size
+    int batch_size;
+    if (this_contig.ndim == 3 && other_contig.ndim == 3) {
+        if (this_contig.shape[0] != other_contig.shape[0]) {
+            throw std::runtime_error("Batch sizes do not match.");
+        }
+        batch_size = this_contig.shape[0];
+    } else {
+        if (this_contig.ndim == 3) {
+            batch_size = this_contig.shape[0];
+        } else if (other_contig.ndim == 3) {
+            batch_size = other_contig.shape[0];
+        } else {
+            batch_size = 1; // Les deux sont 2D
+        }
+    }
+
+    // Détermination de la dimension du résultat
+    int result_ndim = (this_contig.ndim == 3 || other_contig.ndim == 3) ? 3 : 2;
+    std::vector<int> result_shape;
+
+    if (result_ndim == 3) {
+        result_shape = {batch_size, M, K};
+    } else {
+        result_shape = {M, K};
+    }
+
+    // Dispatch selon le device
+    if (this_contig.is_cuda()) {
         return batch_matmul_gpu(this_contig, other_contig);
     }
-
-    // Calcul des dimensions du résultat
-    std::vector<int> result_shape(this_contig.ndim);
-    if (this_contig.ndim == 3) {
-        result_shape[0] = this_contig.shape[0]; // batch size
-        result_shape[1] = this_contig.shape[1]; // rows
-        result_shape[2] = other_contig.shape[2]; // cols
-    } else {
-        result_shape[0] = this_contig.shape[0]; // rows
-        result_shape[1] = other_contig.shape[1]; // cols
-    }
-
-    // Allocation du résultat
-    size_t result_size = 1;
-    for (int dim : result_shape) {
-        result_size *= dim;
-    }
-    float* result_data = new float[result_size];
-
-    // Appel à la fonction de multiplication appropriée
-    if (this_contig.ndim == 2) {
-        matmul_tensor_cpu(&this_contig, &other_contig, result_data);
-    } else {
+    else { // CPU
+        // Allocation mémoire pour le résultat
+        size_t result_size = 1;
+        for (int dim : result_shape) result_size *= dim;
+        float* result_data = new float[result_size];
+        
         batch_matmul_tensor_cpu(&this_contig, &other_contig, result_data);
-    }
 
-    // Création du tenseur résultat
-    Tensor result(result_data, result_shape.data(), result_shape.size());
-    result.is_contiguous = true;
-    return result;
+        // Création du tenseur résultat
+        Tensor result(result_data, result_shape.data(), result_ndim);
+        result.is_contiguous = true;
+        return result;
+    }
 }
 
 bool Tensor::contiguous() const {

@@ -50,42 +50,77 @@ void matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* resu
 }
 
 void batch_matmul_tensor_cpu(const Tensor* tensor1, const Tensor* tensor2, float* result_data) {
-    // Vérification des dimensions
-    if(tensor1->ndim != 3 || tensor2->ndim != 3) {
-        throw std::runtime_error("Both tensors must be 3D for batch matrix multiplication.");
+    // Vérification des dimensions minimales
+    if (tensor1->ndim < 2 || tensor2->ndim < 2) {
+        throw std::runtime_error("Both tensors must be at least 2D for matrix multiplication.");
     }
-    if(tensor1->shape[0] != tensor2->shape[0]) {
-        throw std::runtime_error("Batch sizes do not match.");
+
+    // Détermination des dimensions des matrices
+    int M, N1, N2, K;
+
+    // Dimensions pour tensor1
+    if (tensor1->ndim == 3) {
+        M = tensor1->shape[1];
+        N1 = tensor1->shape[2];
+    } else { // 2D
+        M = tensor1->shape[0];
+        N1 = tensor1->shape[1];
     }
-    if(tensor1->shape[2] != tensor2->shape[1]) {
+
+    // Dimensions pour tensor2
+    if (tensor2->ndim == 3) {
+        N2 = tensor2->shape[1];
+        K = tensor2->shape[2];
+    } else { // 2D
+        N2 = tensor2->shape[0];
+        K = tensor2->shape[1];
+    }
+
+    // Vérification compatibilité dimensions internes
+    if (N1 != N2) {
         throw std::runtime_error("Matrix dimensions do not match for multiplication.");
     }
 
-    int batch_size = tensor1->shape[0];
-    int rows = tensor1->shape[1];
-    int cols = tensor2->shape[2];
-    int inner_dim = tensor1->shape[2];
-    
-    // Taille des matrices dans chaque batch
-    int mat_size1 = rows * inner_dim;
-    int mat_size2 = inner_dim * cols;
-    int result_mat_size = rows * cols;
+    // Détermination de la batch size
+    int batch_size;
+    if (tensor1->ndim == 3 && tensor2->ndim == 3) {
+        if (tensor1->shape[0] != tensor2->shape[0]) {
+            throw std::runtime_error("Batch sizes do not match.");
+        }
+        batch_size = tensor1->shape[0];
+    } else {
+        if (tensor1->ndim == 3) {
+            batch_size = tensor1->shape[0];
+        } else if (tensor2->ndim == 3) {
+            batch_size = tensor2->shape[0];
+        } else {
+            batch_size = 1; // Les deux sont 2D
+        }
+    }
 
-    // Obtenir les pointeurs bruts des données
+    // Accès aux données
     float* data1 = tensor1->data.get();
     float* data2 = tensor2->data.get();
 
-    for (int b = 0; b < batch_size; b++) {
-        float* batch_ptr1 = data1 + b * mat_size1;
-        float* batch_ptr2 = data2 + b * mat_size2;
+    // Calcul des tailles de matrices
+    int tensor1_mat_size = (tensor1->ndim == 3) ? (M * N1) : 0;
+    int tensor2_mat_size = (tensor2->ndim == 3) ? (N2 * K) : 0;
+    int result_mat_size = M * K;
+
+    // Multiplication par batch
+    for (int b = 0; b < batch_size; ++b) {
+        float* batch_ptr1 = (tensor1->ndim == 3) ? (data1 + b * tensor1_mat_size) : data1;
+        float* batch_ptr2 = (tensor2->ndim == 3) ? (data2 + b * tensor2_mat_size) : data2;
         float* result_ptr = result_data + b * result_mat_size;
 
-        for (int i = 0; i < rows; i++) {
-            for (int j = 0; j < cols; j++) {
-                result_ptr[i * cols + j] = 0.0f;
-                for (int k = 0; k < inner_dim; k++) {
-                    result_ptr[i * cols + j] += batch_ptr1[i * inner_dim + k] * batch_ptr2[k * cols + j];
+        // Multiplication matricielle
+        for (int i = 0; i < M; ++i) {
+            for (int j = 0; j < K; ++j) {
+                float sum = 0.0f;
+                for (int k = 0; k < N1; ++k) {
+                    sum += batch_ptr1[i * N1 + k] * batch_ptr2[k * K + j];
                 }
+                result_ptr[i * K + j] = sum;
             }
         }
     }
