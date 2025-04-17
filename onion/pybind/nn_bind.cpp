@@ -9,7 +9,6 @@ ONION_EXPORT void init_nn(py::module& m) {
     py::module nn = m.def_submodule("nn", "Neural network modules");
 
     py::class_<Module>(nn, "Module")
-        .def(py::init<>(), "Base class for all neural network modules")
         .def("parameters", &Module::parameters, "Get parameters of the module")
         .def("to", &Module::to, "Move module to device")
         .def("forward", &Module::forward, "Forward pass through the module");
