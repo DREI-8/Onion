@@ -66,6 +66,15 @@ public:
         const std::shared_ptr<Tensor>& a,
         float scalar
     );
+
+    static std::shared_ptr<AutogradFunction> make_matmul(
+        const std::shared_ptr<Tensor>& a,
+        const std::shared_ptr<Tensor>& b
+    );
+    
+    static std::shared_ptr<AutogradFunction> make_relu(
+        const std::shared_ptr<Tensor>& a
+    );
     
     // We can add more functions here as needed
 };
