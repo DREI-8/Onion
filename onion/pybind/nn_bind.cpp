@@ -30,7 +30,7 @@ ONION_EXPORT void init_nn(py::module& m) {
             py::arg("in_features"), py::arg("out_features"), py::arg("device"))
         .def_static("create_bias", &Linear::create_bias,
             py::arg("out_features"), py::arg("use_bias"), py::arg("device"))
-        .def("forward", &Linear::forward, py::arg("input"));
+        .def("forward", &Linear::forward, py::arg("input"))
         .def("set_weights", &Linear::set_weights, py::arg("weights"))
-        .def("set_bias", &Linear::set_bias, py::arg("bias"))
+        .def("set_bias", &Linear::set_bias, py::arg("bias"));
 }

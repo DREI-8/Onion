@@ -1,7 +1,8 @@
 import unittest
 import numpy as np
 import torch
-from onion import Tensor, Linear, is_cuda_available
+from onion import Tensor, is_cuda_available
+from onion.nn import Linear
 
 class TestLinear(unittest.TestCase):
     
