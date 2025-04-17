@@ -6,14 +6,15 @@
 #include <algorithm>  // Pour std::max
 
 
-
 Tensor ReLU(const Tensor& tensor) {
     if (tensor.is_cuda()) {
         Tensor result = relu_cuda(tensor);
         result.requires_grad = tensor.requires_grad;
 
         if (result.requires_grad) {
-            auto input_shared = std::make_shared<Tensor>(tensor);
+            auto input_shared = std::const_pointer_cast<Tensor>(
+                const_cast<Tensor&>(tensor).shared_from_this()
+            );
             result.grad_fn = AutogradFunction::make_relu(input_shared);
         }
         return result;
@@ -22,7 +23,9 @@ Tensor ReLU(const Tensor& tensor) {
         result.requires_grad = tensor.requires_grad;
 
         if (result.requires_grad) {
-            auto input_shared = std::make_shared<Tensor>(tensor);
+            auto input_shared = std::const_pointer_cast<Tensor>(
+                const_cast<Tensor&>(tensor).shared_from_this()
+            );
             result.grad_fn = AutogradFunction::make_relu(input_shared);
         }
         return result;

@@ -322,15 +322,26 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_relu(
         if (a->requires_grad) {
             float* mask_data = new float[a->size];
             for (int i = 0; i < a->size; ++i) {
-                mask_data[i] = (a->data[i] > 0.0f) ? 1.0f : 0.0f;
+                mask_data[i] = (a->data.get()[i] > 0.0f) ? 1.0f : 0.0f;
             }
-            auto mask = std::make_shared<Tensor>(mask_data, a->shape.get(), a->ndim);
+            int* shape_copy = new int[a->ndim];
+            memcpy(shape_copy, a->shape.get(), a->ndim * sizeof(int));
+            auto mask = std::make_shared<Tensor>(mask_data, shape_copy, a->ndim);
+
             auto grad_a = std::make_shared<Tensor>(*grad * *mask);
-            if (a->grad) *a->grad = *a->grad + *grad_a;
-            else a->grad = grad_a;
-            if (a->grad_fn) a->grad_fn->backward(a->grad);
+
+            if (a->grad) {
+                *a->grad = *a->grad + *grad_a;
+            } else {
+                a->grad = grad_a;
+            }
+
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
         }
     };
+    
     return std::make_shared<AutogradFunction>(
         std::vector<std::shared_ptr<Tensor>>{a},
         backward_fn
