@@ -686,7 +686,8 @@ std::shared_ptr<Tensor> sum_tensor_cuda(const Tensor& tensor, int adjusted_axis,
     auto result = std::make_shared<Tensor>(
         std::shared_ptr<float[]>(d_result, deleter),
         shape_copy,
-        out_ndim
+        out_ndim,
+        tensor.requires_grad
     );
 
     result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
