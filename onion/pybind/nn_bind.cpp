@@ -1,6 +1,8 @@
 #include <pybind11/pybind11.h>
 #include "../nn/module.h"
 #include "../nn/linear.h" 
+#include "../nn/relu.h"
+#include "../nn/relu_cuda.h"
 #include "pybind_common.h" // Pour ONION_EXPORT
 
 namespace py = pybind11;
@@ -32,4 +34,10 @@ ONION_EXPORT void init_nn(py::module& m) {
         .def("forward", &Linear::forward, py::arg("input"))
         .def("set_weights", &Linear::set_weights, py::arg("weights"))
         .def("set_bias", &Linear::set_bias, py::arg("bias"));
+
+    nn.def("relu", &ReLU, py::arg("tensor"), 
+            "Rectified Linear Unit activation function\n"
+            "Automatically dispatches to CUDA implementation if available");
+
+    
 }
