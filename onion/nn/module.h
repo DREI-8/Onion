@@ -16,7 +16,7 @@ class Module {
                 param->to(device);
             }
         };
-        virtual Tensor forward(const Tensor& input) const = 0;
+        virtual std::shared_ptr<Tensor> forward(const std::shared_ptr<Tensor>& input) const = 0;
 
     protected:
         std::vector<std::shared_ptr<Tensor>> params_;

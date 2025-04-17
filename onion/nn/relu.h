@@ -4,7 +4,7 @@
 #include "tensor.h"
 
 
-Tensor relu_cpu(const Tensor& tensor);
-Tensor ReLU(const Tensor& tensor);
+std::shared_ptr<Tensor> relu_cpu(const std::shared_ptr<Tensor>& tensor);
+std::shared_ptr<Tensor> ReLU(const std::shared_ptr<Tensor>& tensor);
 
 #endif // RELU_H

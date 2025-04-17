@@ -11,7 +11,7 @@ __global__ void relu_kernel(const float* input, float* output, int size) {
     }
 }
 
-Tensor relu_cuda(const Tensor& tensor) {
+std::shared_ptr<Tensor> relu_cuda(const Tensor& tensor) {
     // Vérifier la contigüité et convertir si nécessaire
     Tensor contiguous_tensor = tensor.contiguous() ? tensor : tensor.to_contiguous();
 
@@ -46,10 +46,10 @@ Tensor relu_cuda(const Tensor& tensor) {
     std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
 
     // Construire le tensor résultat
-    Tensor result(shared_result, shape_copy, contiguous_tensor.ndim);
+    auto result = std::make_shared<Tensor>(shared_result, shape_copy, contiguous_tensor.ndim);
     
     // Définir le device sur "cuda"
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
 
     return result;
 }

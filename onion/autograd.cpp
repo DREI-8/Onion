@@ -9,9 +9,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_add(
     auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
             if (a->grad) {
-                *a->grad = *a->grad + *grad;
+                a->grad = a->grad + grad;
             } else {
-                a->grad = std::make_shared<Tensor>(*grad);
+                a->grad = grad;
             }
             
             if (a->grad_fn) {
@@ -21,9 +21,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_add(
 
         if (b->requires_grad) {
             if (b->grad) {
-                *b->grad = *b->grad + *grad;
+                b->grad = b->grad + grad;
             } else {
-                b->grad = std::make_shared<Tensor>(*grad);
+                b->grad = grad;
             }
             
             if (b->grad_fn) {
@@ -45,9 +45,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_sub(
     auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
             if (a->grad) {
-                *a->grad = *a->grad + *grad;
+                a->grad = a->grad + grad;
             } else {
-                a->grad = std::make_shared<Tensor>(*grad);
+                a->grad = grad;
             }
             
             if (a->grad_fn) {
@@ -56,9 +56,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_sub(
         }
         
         if (b->requires_grad) {
-            auto neg_grad = std::make_shared<Tensor>(-(*grad));
+            auto neg_grad = -grad;
             if (b->grad) {
-                *b->grad = *b->grad + *neg_grad;
+                b->grad = b->grad + neg_grad;
             } else {
                 b->grad = neg_grad;
             }
@@ -93,7 +93,7 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_neg(
             auto neg_grad = std::make_shared<Tensor>(neg_grad_data, shape_copy, grad->ndim);
             
             if (a->grad) {
-                *a->grad = *a->grad + *neg_grad;
+                a->grad = a->grad + neg_grad;
             } else {
                 a->grad = neg_grad;
             }
@@ -116,9 +116,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_mul(
 ) {
     auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
-            auto grad_a = std::make_shared<Tensor>(*grad * *b);
+            auto grad_a = grad * b;
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }
@@ -129,9 +129,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_mul(
         }
         
         if (b->requires_grad) {
-            auto grad_b = std::make_shared<Tensor>(*grad * *a);
+            auto grad_b = grad * a;
             if (b->grad) {
-                *b->grad = *b->grad + *grad_b;
+                b->grad = b->grad + grad_b;
             } else {
                 b->grad = grad_b;
             }
@@ -154,9 +154,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_div(
 ) {
     auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
-            auto grad_a = std::make_shared<Tensor>(*grad / *b);
+            auto grad_a = grad / b;
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }
@@ -180,7 +180,7 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_div(
             auto grad_b = std::make_shared<Tensor>(result_data, shape_copy, grad->ndim);
 
             if (b->grad) {
-                *b->grad = *b->grad + *grad_b;
+                b->grad = b->grad + grad_b;
             } else {
                 b->grad = grad_b;
             }
@@ -204,9 +204,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_add_sub_scalar(
     auto backward_fn = [a](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
             if (a->grad) {
-                *a->grad = *a->grad + *grad;
+                a->grad = a->grad + grad;
             } else {
-                a->grad = std::make_shared<Tensor>(*grad);
+                a->grad = grad;
             }
             
             if (a->grad_fn) {
@@ -227,9 +227,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_mul_scalar(
 ) {
     auto backward_fn = [a, scalar](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
-            auto grad_a = std::make_shared<Tensor>(*grad * scalar);
+            auto grad_a = grad * scalar;
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }
@@ -252,9 +252,9 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_div_scalar(
 ) {
     auto backward_fn = [a, scalar](const std::shared_ptr<Tensor>& grad) {
         if (a->requires_grad) {
-            auto grad_a = std::make_shared<Tensor>(*grad / scalar);
+            auto grad_a = grad / scalar;
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }
@@ -279,12 +279,12 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_matmul(
         if (a->requires_grad) {
             // grad_a = grad * b^T
             auto b_t = b->transpose();
-            auto grad_a = std::make_shared<Tensor>(grad->matmul(*b_t));
+            auto grad_a = grad->matmul(b_t);
             
             if (!a->grad) {
-                a->grad = std::make_shared<Tensor>(*grad_a);
+                a->grad = grad_a;
             } else {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             }
             
             if (a->grad_fn) a->grad_fn->backward(a->grad);
@@ -293,12 +293,12 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_matmul(
         if (b->requires_grad) {
             // grad_b = a^T * grad
             auto a_t = a->transpose();
-            auto grad_b = std::make_shared<Tensor>(a_t->matmul(*grad));
+            auto grad_b = a_t->matmul(grad);
             
             if (!b->grad) {
-                b->grad = std::make_shared<Tensor>(*grad_b);
+                b->grad = grad_b;
             } else {
-                *b->grad = *b->grad + *grad_b;
+                b->grad = b->grad + grad_b;
             }
             
             if (b->grad_fn) b->grad_fn->backward(b->grad);
@@ -324,10 +324,10 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_relu(
             memcpy(shape_copy, a->shape.get(), a->ndim * sizeof(int));
             auto mask = std::make_shared<Tensor>(mask_data, shape_copy, a->ndim);
 
-            auto grad_a = std::make_shared<Tensor>(*grad * *mask);
+            auto grad_a = grad * mask;
 
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }
@@ -360,7 +360,7 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_sum(
             auto grad_a = std::make_shared<Tensor>(grad_data, shape_copy, a->ndim);
 
             if (a->grad) {
-                *a->grad = *a->grad + *grad_a;
+                a->grad = a->grad + grad_a;
             } else {
                 a->grad = grad_a;
             }

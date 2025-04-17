@@ -31,16 +31,16 @@ class Tensor : public std::enable_shared_from_this<Tensor> {
         std::shared_ptr<Tensor> sum(int axis = -999, bool keepdims = false) const;
         std::shared_ptr<Tensor> mean(int axis = -999, bool keepdims = false) const;
 
-        Tensor operator+(const Tensor& other) const;
-        Tensor operator+(float scalar) const;
-        Tensor operator-(const Tensor& other) const;
-        Tensor operator-() const;
-        Tensor operator-(float scalar) const;
-        Tensor operator*(const Tensor& other) const;
-        Tensor operator*(float scalar) const;
-        Tensor operator/(const Tensor& other) const;
-        Tensor operator/(float scalar) const;
-        Tensor matmul(const Tensor& other) const;
+        std::shared_ptr<Tensor> operator+(const std::shared_ptr<Tensor>& other) const;
+        std::shared_ptr<Tensor> operator+(float scalar) const;
+        std::shared_ptr<Tensor> operator-(const std::shared_ptr<Tensor>& other) const;
+        std::shared_ptr<Tensor> operator-() const;
+        std::shared_ptr<Tensor> operator-(float scalar) const;
+        std::shared_ptr<Tensor> operator*(const std::shared_ptr<Tensor>& other) const;
+        std::shared_ptr<Tensor> operator*(float scalar) const;
+        std::shared_ptr<Tensor> operator/(const std::shared_ptr<Tensor>& other) const;
+        std::shared_ptr<Tensor> operator/(float scalar) const;
+        std::shared_ptr<Tensor> matmul(const std::shared_ptr<Tensor>& other) const;
 
         void set_grad(const std::shared_ptr<Tensor> new_grad);
         void backward(std::shared_ptr<Tensor> gradient = nullptr);
@@ -50,10 +50,47 @@ class Tensor : public std::enable_shared_from_this<Tensor> {
         bool contiguous() const;
         Tensor to_contiguous() const;
 
-        Tensor to(const char* device_name) const;
+        std::shared_ptr<Tensor> to(const char* device_name) const;
         bool is_cuda() const;
 };
 
 bool is_cuda_available();
+
+inline std::shared_ptr<Tensor> operator+(const std::shared_ptr<Tensor>& a, const std::shared_ptr<Tensor>& b) {
+    return a->operator+(b);
+}
+inline std::shared_ptr<Tensor> operator+(const std::shared_ptr<Tensor>& a, float scalar) {
+    return a->operator+(scalar);
+}
+inline std::shared_ptr<Tensor> operator+(float scalar, const std::shared_ptr<Tensor>& a) {
+    return a->operator+(scalar);
+}
+inline std::shared_ptr<Tensor> operator-(const std::shared_ptr<Tensor>& a, const std::shared_ptr<Tensor>& b) {
+    return a->operator-(b);
+}
+inline std::shared_ptr<Tensor> operator-(const std::shared_ptr<Tensor>& a) {
+    return a->operator-();
+}
+inline std::shared_ptr<Tensor> operator-(const std::shared_ptr<Tensor>& a, float scalar) {
+    return a->operator-(scalar);
+}
+inline std::shared_ptr<Tensor> operator-(float scalar, const std::shared_ptr<Tensor>& a) {
+    return (a->operator*(-1.0f))->operator-(scalar);
+}
+inline std::shared_ptr<Tensor> operator*(const std::shared_ptr<Tensor>& a, const std::shared_ptr<Tensor>& b) {
+    return a->operator*(b);
+}
+inline std::shared_ptr<Tensor> operator*(const std::shared_ptr<Tensor>& a, float scalar) {
+    return a->operator*(scalar);
+}
+inline std::shared_ptr<Tensor> operator*(float scalar, const std::shared_ptr<Tensor>& a) {
+    return a->operator*(scalar);
+}
+inline std::shared_ptr<Tensor> operator/(const std::shared_ptr<Tensor>& a, const std::shared_ptr<Tensor>& b) {
+    return a->operator/(b);
+}
+inline std::shared_ptr<Tensor> operator/(const std::shared_ptr<Tensor>& a, float scalar) {
+    return a->operator/(scalar);
+}
 
 #endif // TENSOR_H

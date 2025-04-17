@@ -35,21 +35,21 @@ std::shared_ptr<Tensor> numpy_to_tensor(py::array_t<float> numpy_array) {
     return std::make_shared<Tensor>(data, shape, ndim);
 }
 
-py::array_t<float> tensor_to_numpy(const Tensor& tensor) {
-    std::vector<ssize_t> shape(tensor.ndim);
-    std::vector<ssize_t> strides(tensor.ndim);
+py::array_t<float> tensor_to_numpy(const std::shared_ptr<Tensor>& tensor) {
+    std::vector<ssize_t> shape(tensor->ndim);
+    std::vector<ssize_t> strides(tensor->ndim);
 
-    for (int i = 0; i < tensor.ndim; i++) {
-        shape[i] = tensor.shape[i];
-        strides[i] = tensor.strides[i] * sizeof(float);
+    for (int i = 0; i < tensor->ndim; i++) {
+        shape[i] = tensor->shape[i];
+        strides[i] = tensor->strides[i] * sizeof(float);
     }
 
-    float* data = new float[tensor.size];
+    float* data = new float[tensor->size];
 
-    if (tensor.is_cuda()) {
+    if (tensor->is_cuda()) {
 #ifdef USE_CUDA
-        float* cuda_data = tensor.data.get();
-        cudaError_t err = cudaMemcpy(data, cuda_data, tensor.size * sizeof(float), cudaMemcpyDeviceToHost);
+        float* cuda_data = tensor->data.get();
+        cudaError_t err = cudaMemcpy(data, cuda_data, tensor->size * sizeof(float), cudaMemcpyDeviceToHost);
         if (err != cudaSuccess) {
             delete[] data;
             throw std::runtime_error("CUDA memcpy failed: " + std::string(cudaGetErrorString(err)));
@@ -59,7 +59,7 @@ py::array_t<float> tensor_to_numpy(const Tensor& tensor) {
         throw std::runtime_error("Cannot convert CUDA tensor to numpy in a non-CUDA build");
 #endif
     } else {
-        memcpy(data, tensor.data.get(), tensor.size * sizeof(float));
+        memcpy(data, tensor->data.get(), tensor->size * sizeof(float));
     }
 
     return py::array_t<float>(
@@ -84,42 +84,42 @@ ONION_EXPORT void init_tensor(py::module& m) {
 		.def("sum", &Tensor::sum, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the sum along an axis")
 		.def("mean", &Tensor::mean, py::arg("axis") = -999, py::arg("keepdims") = false, "Get the mean along an axis")
 		
-		.def("__add__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator+), "Add two tensors")
-		.def("__add__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator+), "Add scalar to tensor")
-		.def("__radd__", [](const Tensor& t, float scalar) { return t + scalar; }, "Add tensor to scalar")
-		.def("__sub__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator-), "Subtract two tensors")
-		.def("__sub__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator-), "Subtract scalar from tensor")
-		.def("__rsub__", [](const Tensor& t, float scalar) { return -t + scalar; }, "Subtract tensor from scalar")
-		.def("__neg__", static_cast<Tensor (Tensor::*)() const>(&Tensor::operator-), "Negate a tensor")
-		.def("__mul__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator*), "Multiply two tensors")
-		.def("__mul__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator*), "Multiply tensor by scalar")
-		.def("__rmul__", [](const Tensor& t, float scalar) { return t * scalar; }, "Multiply scalar by tensor")
-		.def("__truediv__", static_cast<Tensor (Tensor::*)(const Tensor&) const>(&Tensor::operator/), "Divide two tensors")
-		.def("__truediv__", static_cast<Tensor (Tensor::*)(float) const>(&Tensor::operator/), "Divide tensor by scalar")
-		.def("__rtruediv__", [](const Tensor& t, float scalar) { 
+		.def("__add__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(const std::shared_ptr<Tensor>&) const>(&Tensor::operator+), "Add two tensors")
+		.def("__add__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(float) const>(&Tensor::operator+), "Add scalar to tensor")
+		.def("__radd__", [](const std::shared_ptr<Tensor>& t, float scalar) { return t->operator+(scalar); }, "Add tensor to scalar")
+		.def("__sub__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(const std::shared_ptr<Tensor>&) const>(&Tensor::operator-), "Subtract two tensors")
+		.def("__sub__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(float) const>(&Tensor::operator-), "Subtract scalar from tensor")
+        .def("__rsub__", [](const std::shared_ptr<Tensor>& t, float scalar) { return t->operator-() + scalar; }, "Subtract tensor from scalar")
+        .def("__neg__", static_cast<std::shared_ptr<Tensor> (Tensor::*)() const>(&Tensor::operator-), "Negate a tensor")
+		.def("__mul__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(const std::shared_ptr<Tensor>&) const>(&Tensor::operator*), "Multiply two tensors")
+        .def("__mul__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(float) const>(&Tensor::operator*), "Multiply tensor by scalar")
+		.def("__rmul__", [](const std::shared_ptr<Tensor>& t, float scalar) { return t->operator*(scalar); }, "Multiply scalar by tensor")
+		.def("__truediv__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(const std::shared_ptr<Tensor>&) const>(&Tensor::operator/), "Divide two tensors")
+		.def("__truediv__", static_cast<std::shared_ptr<Tensor> (Tensor::*)(float) const>(&Tensor::operator/), "Divide tensor by scalar")
+		.def("__rtruediv__", [](const std::shared_ptr<Tensor>& t, float scalar) { 
 			throw std::runtime_error("Division of scalar by tensor is not supported yet");
 		 }, "Divide scalar by tensor")
 		.def("matmul", &Tensor::matmul, "Matrix multiplication between two tensors")
         .def("__matmul__", &Tensor::matmul, "Matrix multiplication operator (@ in Python)")
 		
-		.def("to", [](const Tensor& tensor, const std::string& device) {
-			return tensor.to(device.c_str());
+		.def("to", [](const std::shared_ptr<Tensor>& tensor, const std::string& device) {
+			return tensor->to(device.c_str());
 		}, "Move tensor to the specified device (cpu or cuda)")
 		.def("is_cuda", &Tensor::is_cuda, "Check if tensor is on CUDA")
-		.def("__array__", [](const Tensor& tensor) {
+		.def("__array__", [](const std::shared_ptr<Tensor>& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
-		.def("numpy", [](const Tensor& tensor) {
+		.def("numpy", [](const std::shared_ptr<Tensor>& tensor) {
 			return tensor_to_numpy(tensor);
 		}, "Convert tensor to numpy array")
-		.def_property_readonly("shape", [](const Tensor& t) {
-            std::vector<int> shape(t.ndim);
-            for (int i = 0; i < t.ndim; ++i) {
-                shape[i] = t.shape.get()[i];
+		.def_property_readonly("shape", [](const std::shared_ptr<Tensor>& t) {
+            std::vector<int> shape(t->ndim);
+            for (int i = 0; i < t->ndim; ++i) {
+                shape[i] = t->shape.get()[i];
             }
             return py::tuple(py::cast(shape));
         }, "Shape of the tensor (tuple)")
-        .def_property_readonly("dtype", [](const Tensor&) {
+        .def_property_readonly("dtype", [](const std::shared_ptr<Tensor>&) {
             return py::dtype("float32");
         }, "Data type of the tensor (numpy.float32)")
 		.def(py::init([](py::array_t<float> array, bool requires_grad) {
@@ -149,13 +149,13 @@ ONION_EXPORT void init_tensor(py::module& m) {
         }, py::arg("gradient") = py::none())
         .def("zero_grad", &Tensor::zero_grad)
         .def("detach", &Tensor::detach)
-		.def("debug_info", [](const Tensor& t) {
+		.def("debug_info", [](const std::shared_ptr<Tensor>& t) {
 			std::cout << "Tensor debug info:" << std::endl;
-			std::cout << "  requires_grad: " << (t.requires_grad ? "true" : "false") << std::endl;
-			std::cout << "  has grad_fn: " << (t.grad_fn ? "true" : "false") << std::endl;
+			std::cout << "  requires_grad: " << (t->requires_grad ? "true" : "false") << std::endl;
+			std::cout << "  has grad_fn: " << (t->grad_fn ? "true" : "false") << std::endl;
 			return py::none();
 		})
-		.def("__repr__", [](const Tensor& tensor) {
+		.def("__repr__", [](const std::shared_ptr<Tensor>& tensor) {
 			std::ostringstream oss;
 			oss << "Tensor(";
 			
@@ -163,9 +163,9 @@ ONION_EXPORT void init_tensor(py::module& m) {
 			auto buffer = np_array.request();
 			float* data = static_cast<float*>(buffer.ptr);
 			
-			if (tensor.size <= 10) {
+			if (tensor->size <= 10) {
 				oss << "[";
-				for (int i = 0; i < tensor.size; ++i) {
+				for (int i = 0; i < tensor->size; ++i) {
 					if (i > 0) oss << ", ";
 					oss << data[i];
 				}
@@ -173,17 +173,17 @@ ONION_EXPORT void init_tensor(py::module& m) {
 			} else {
 				for (int i = 0; i < 5; ++i) oss << data[i] << ", ";
 				oss << "..., ";
-				for (int i = tensor.size - 2; i < tensor.size; ++i) oss << data[i] << ", ";
+				for (int i = tensor->size - 2; i < tensor->size; ++i) oss << data[i] << ", ";
 				oss.seekp(-2, oss.cur); // Remove trailing comma
 				oss << "]";
 			}
 			
 			oss << ", shape=(";
-			for (int i = 0; i < tensor.ndim; ++i) {
+			for (int i = 0; i < tensor->ndim; ++i) {
 				if (i > 0) oss << ", ";
-				oss << tensor.shape[i];
+				oss << tensor->shape[i];
 			}
-			oss << "), device='" << (tensor.is_cuda() ? "cuda" : "cpu") << "')";
+			oss << "), device='" << (tensor->is_cuda() ? "cuda" : "cpu") << "')";
 			
 			return oss.str();
 		});
