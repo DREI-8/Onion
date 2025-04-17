@@ -29,7 +29,7 @@ class TestTensorMatMul(unittest.TestCase):
         self.compare_with_numpy(result, self.a_2d, self.b_2d)
         
         # Test shape
-        self.assertEqual(result.shape, [3, 5])
+        self.assertEqual(result.shape, (3, 5))
 
     def test_matmul_3d(self):
         # Test CPU
@@ -39,7 +39,7 @@ class TestTensorMatMul(unittest.TestCase):
         self.compare_with_numpy(result, self.a_3d, self.b_3d)
         
         # Test shape
-        self.assertEqual(result.shape, [2, 3, 5])
+        self.assertEqual(result.shape, (2, 3, 5))
 
     def test_matmul_mixed_dims(self):
         # Cas 1: 3D x 2D
@@ -47,14 +47,14 @@ class TestTensorMatMul(unittest.TestCase):
         tensor_b = Tensor(self.b_2d)
         result = tensor_a.matmul(tensor_b)
         self.compare_with_numpy(result, self.a_3d, self.b_2d)
-        self.assertEqual(result.shape, [2, 3, 5])
+        self.assertEqual(result.shape, (2, 3, 5))
         
         # Cas 2: 2D x 3D
         tensor_a = Tensor(self.a_2d)
         tensor_b = Tensor(self.b_3d)
         result = tensor_a.matmul(tensor_b)
         self.compare_with_numpy(result, self.a_2d, self.b_3d)
-        self.assertEqual(result.shape, [2, 3, 5])
+        self.assertEqual(result.shape, (2, 3, 5))
 
     def test_matmul_errors(self):
         # Dimensions incompatibles
@@ -95,6 +95,7 @@ class TestTensorMatMul(unittest.TestCase):
         result = tensor_a.matmul(tensor_b).to("cpu")
         self.compare_with_numpy(result, self.a_3d, self.b_3d_broadcast)
 
+    @unittest.skipIf(not is_cuda_available(), "CUDA non disponible")
     def test_matmul_gradient(self):
         # Test de la propagation du device
         tensor_a = Tensor(self.a_2d).to("cuda")
