@@ -1,21 +1,26 @@
 #ifndef LINEAR_H
 #define LINEAR_H
 
-#include "../tensor.h"
+#include "module.h"
 
-class Linear {
-public:
-    Linear(int in_features, int out_features, bool use_bias = true, const char* device_name = "cpu");
-    Tensor apply(const Tensor& other) const;
-    void to(const char* device_name);
+class Linear : public Module {
+    public:
+        Linear(int in_features, int out_features, bool use_bias = true, const char* device = "cpu");
+        Tensor forward(const Tensor& input) const override;
 
 
-    Tensor weights;
-    Tensor bias;
+        static Tensor create_weights(int in_features, int out_features, const char* device);
+        static Tensor create_bias(int out_features, bool use_bias, const char* device);
+        const Tensor& get_weights() const { return *weights_; }
+        const Tensor& get_bias() const { return *bias_; }
 
-    static Tensor create_weights(int in_features, int out_features);
-    static Tensor create_bias(int in_features, int out_features, bool use_bias);
+    private:
+        int in_features_;
+        int out_features_;
+        bool use_bias_;
 
+        std::shared_ptr<Tensor> weights_;
+        std::shared_ptr<Tensor> bias_;
 };
 
 bool is_cuda_available();

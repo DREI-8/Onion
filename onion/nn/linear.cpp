@@ -5,7 +5,45 @@
 #include <random>
 #include <stdexcept>
 
-Tensor Linear::create_weights(int in_features, int out_features) {
+Linear::Linear(int in_features, int out_features, bool use_bias, const char* device): 
+    in_features_(in_features),
+    out_features_(out_features),
+    use_bias_(use_bias) 
+{
+    {
+        weights_ = std::make_shared<Tensor>(create_weights(in_features, out_features, device));
+        register_parameter(weights_);
+
+        if (use_bias) {
+            bias_ = std::make_shared<Tensor>(create_bias(out_features, use_bias, device));
+            register_parameter(bias_);
+        } else {
+            int empty_shape[] = {0};
+            bias_ = std::make_shared<Tensor>(nullptr, empty_shape, 1);
+        }
+    }
+}
+
+Tensor Linear::forward(const Tensor& input) const {
+    if (input.ndim ==2 && input.shape[1] != in_features_){
+        throw std::invalid_argument("Input tensor shape does not match weights shape.");
+    }
+    if(input.ndim == 3 && input.shape[2] != in_features_){
+        throw std::invalid_argument("Input tensor shape does not match weights shape.");
+    }
+    if (input.ndim > 3 || input.ndim < 2) {
+        throw std::invalid_argument("Input tensor must be 2D or 3D.");
+    }
+
+    Tensor result = input.matmul(*weights_);
+    if (use_bias_) {
+        result = result + *bias_; 
+    }
+
+    return result;
+}
+
+Tensor Linear::create_weights(int in_features, int out_features, const char* device) {
     int weights_shape[] = {in_features, out_features};
     float* weights_data = new float[in_features * out_features];
     
@@ -19,51 +57,24 @@ Tensor Linear::create_weights(int in_features, int out_features) {
     
     Tensor tensor(weights_data, weights_shape, 2);
     delete[] weights_data;
-    return tensor;
+    return tensor.to(device);
 }
 
-Tensor Linear::create_bias(int in_features, int out_features, bool use_bias) {
+Tensor Linear::create_bias(int out_features, bool use_bias, const char* device) {
     if (use_bias) {
-        int bias_shape[] = {in_features, out_features}; // 1D tensor
-        float* bias_data = new float[in_features * out_features]; // Zero-initialized
+        int bias_shape[] = {out_features}; // 1D tensor
+        float* bias_data = new float[out_features]; // Zero-initialized
+
+        for (int i = 0; i < out_features; ++i) {
+            bias_data[i] = 0.0f;
+        }
         
-        Tensor tensor(bias_data, bias_shape, 2);
+        Tensor tensor(bias_data, bias_shape, 1);
         delete[] bias_data;
-        return tensor;
+        
+        return tensor.to(device);
     } else {
         int bias_shape[] = {0};
         return Tensor(nullptr, bias_shape, 1);
     }
-}
-
-Linear::Linear(int in_features, int out_features, bool use_bias, const char* device_name)
-    : weights(create_weights(in_features, out_features)),
-      bias(create_bias(in_features, out_features, use_bias)) {
-    weights = weights.to(device_name);
-    bias    = bias.to(device_name);
-}
-
-Tensor Linear::apply(const Tensor& other) const {
-
-
-    if (other.ndim ==2 && other.shape[1] != weights.shape[0]){
-        throw std::invalid_argument("Input tensor shape does not match weights shape.");
-    }
-    if(other.ndim == 3 && other.shape[2] != weights.shape[0]){
-        throw std::invalid_argument("Input tensor shape does not match weights shape.");
-    }
-    if (other.ndim > 3 || other.ndim < 2) {
-        throw std::invalid_argument("Input tensor must be 2D or 3D.");
-    }
-
-    Tensor result = other.matmul(weights);
-        if (bias.size > 0) {
-            result = result + bias; 
-        }
-        return result;
-}
-
-void Linear::to(const char* device_name) {
-    weights = weights.to(device_name);
-    bias   = bias.to(device_name);
 }
