@@ -1,7 +1,7 @@
 #ifndef LINEAR_H
 #define LINEAR_H
 
-#include "tensor.h"
+#include "../tensor.h"
 
 class Linear {
 public:

@@ -1,5 +1,5 @@
 #include <pybind11/pybind11.h>
-#include "linear.h"
+#include "../nn/linear.h" 
 #include "pybind_common.h" // Pour ONION_EXPORT
 
 namespace py = pybind11;

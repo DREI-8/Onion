@@ -1,5 +1,5 @@
 #include "linear.h"
-#include "tensor.h"
+#include "../tensor.h"
 #include <cstring>
 #include <algorithm> 
 #include <random>
