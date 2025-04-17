@@ -13,3 +13,4 @@ namespace py = pybind11;
 ONION_EXPORT void init_tensor(py::module& m);
 ONION_EXPORT void init_optim(py::module& m);
 ONION_EXPORT void init_linear(py::module& m); 
+ONION_EXPORT void init_relu(py::module& m);
