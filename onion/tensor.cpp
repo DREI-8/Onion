@@ -390,7 +390,12 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
         sum_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
-        return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim);
+        auto result = std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim, this->requires_grad);
+        if (result->requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(shared_from_this());
+            result->grad_fn = AutogradFunction::make_sum(self_shared, adjusted_axis, keepdims);
+        }
+        return result;
     }
 }
 
@@ -841,7 +846,14 @@ Tensor Tensor::matmul(const Tensor& other) const {
 
     // Dispatch selon le device
     if (this_contig.is_cuda()) {
-        return batch_matmul_gpu(this_contig, other_contig);
+        Tensor result = batch_matmul_gpu(this_contig, other_contig);
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(other.shared_from_this());
+            result.grad_fn = AutogradFunction::make_matmul(self_shared, other_shared);
+        }
+        return result;
     }
     else { // CPU
         // Allocation mémoire pour le résultat
@@ -854,6 +866,13 @@ Tensor Tensor::matmul(const Tensor& other) const {
         // Création du tenseur résultat
         Tensor result(result_data, result_shape.data(), result_ndim);
         result.is_contiguous = true;
+
+        result.requires_grad = this->requires_grad || other.requires_grad;
+        if (result.requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            auto other_shared = std::const_pointer_cast<Tensor>(other.shared_from_this());
+            result.grad_fn = AutogradFunction::make_matmul(self_shared, other_shared);
+        }
         return result;
     }
 }

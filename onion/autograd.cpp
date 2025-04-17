@@ -271,4 +271,109 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_div_scalar(
     );
 }
 
+std::shared_ptr<AutogradFunction> AutogradFunction::make_matmul(
+    const std::shared_ptr<Tensor>& a,
+    const std::shared_ptr<Tensor>& b
+) {
+    auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            // grad_a = grad * b^T
+            auto b_t = b->transpose();
+            auto grad_a = std::make_shared<Tensor>(grad->matmul(*b_t));
+            
+            if (!a->grad) {
+                a->grad = std::make_shared<Tensor>(*grad_a);
+            } else {
+                *a->grad = *a->grad + *grad_a;
+            }
+            
+            if (a->grad_fn) a->grad_fn->backward(a->grad);
+        }
+
+        if (b->requires_grad) {
+            // grad_b = a^T * grad
+            auto a_t = a->transpose();
+            auto grad_b = std::make_shared<Tensor>(a_t->matmul(*grad));
+            
+            if (!b->grad) {
+                b->grad = std::make_shared<Tensor>(*grad_b);
+            } else {
+                *b->grad = *b->grad + *grad_b;
+            }
+            
+            if (b->grad_fn) b->grad_fn->backward(b->grad);
+        }
+    };
+    
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a, b},
+        backward_fn
+    );
+}
+
+std::shared_ptr<AutogradFunction> AutogradFunction::make_relu(
+    const std::shared_ptr<Tensor>& a
+) {
+    auto backward_fn = [a](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            float* mask_data = new float[a->size];
+            for (int i = 0; i < a->size; ++i) {
+                mask_data[i] = (a->data.get()[i] > 0.0f) ? 1.0f : 0.0f;
+            }
+            int* shape_copy = new int[a->ndim];
+            memcpy(shape_copy, a->shape.get(), a->ndim * sizeof(int));
+            auto mask = std::make_shared<Tensor>(mask_data, shape_copy, a->ndim);
+
+            auto grad_a = std::make_shared<Tensor>(*grad * *mask);
+
+            if (a->grad) {
+                *a->grad = *a->grad + *grad_a;
+            } else {
+                a->grad = grad_a;
+            }
+
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
+        }
+    };
+    
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a},
+        backward_fn
+    );
+}
+
+std::shared_ptr<AutogradFunction> AutogradFunction::make_sum(
+    const std::shared_ptr<Tensor>& a,
+    int axis,
+    bool keepdims
+) {
+    auto backward_fn = [a](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            float* grad_data = new float[a->size];
+            for (int i = 0; i < a->size; ++i) {
+                grad_data[i] = grad->data[0];
+            }
+            int* shape_copy = new int[a->ndim];
+            memcpy(shape_copy, a->shape.get(), a->ndim * sizeof(int));
+            auto grad_a = std::make_shared<Tensor>(grad_data, shape_copy, a->ndim);
+
+            if (a->grad) {
+                *a->grad = *a->grad + *grad_a;
+            } else {
+                a->grad = grad_a;
+            }
+
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
+        }
+    };
+
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a},
+        backward_fn
+    );
+}
 // the rest to be added

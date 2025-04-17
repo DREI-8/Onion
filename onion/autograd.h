@@ -38,6 +38,12 @@ public:
         const std::shared_ptr<Tensor>& b
     );
 
+    static std::shared_ptr<AutogradFunction> make_sum(
+        const std::shared_ptr<Tensor>& a,
+        int axis,
+        bool keepdims
+    );
+
     static std::shared_ptr<AutogradFunction> make_neg(
         const std::shared_ptr<Tensor>& a
     );
@@ -65,6 +71,15 @@ public:
     static std::shared_ptr<AutogradFunction> make_div_scalar(
         const std::shared_ptr<Tensor>& a,
         float scalar
+    );
+
+    static std::shared_ptr<AutogradFunction> make_matmul(
+        const std::shared_ptr<Tensor>& a,
+        const std::shared_ptr<Tensor>& b
+    );
+    
+    static std::shared_ptr<AutogradFunction> make_relu(
+        const std::shared_ptr<Tensor>& a
     );
     
     // We can add more functions here as needed
