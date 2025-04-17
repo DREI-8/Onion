@@ -52,7 +52,7 @@ class TestLinear(unittest.TestCase):
                 onion_layer.bias = bias_tensor.to(device)
         
         # Forward pass
-        onion_output = onion_layer.apply(onion_tensor)
+        onion_output = onion_layer.forward(onion_tensor)
         if onion_output.is_cuda():
             onion_output = onion_output.to("cpu")
         torch_output = torch_layer(torch_tensor).cpu().detach().numpy()
@@ -68,17 +68,17 @@ class TestLinear(unittest.TestCase):
         self.assertTrue(np.allclose(onion_np, torch_output, atol=atol),
                         f"Value mismatch: max diff = {np.max(np.abs(onion_np - torch_output))}")
 
-    # def test_linear_2d_with_bias_cpu(self):
-    #     """Test linear layer with 2D input and bias on CPU."""
-    #     in_features = 4
-    #     out_features = 5
+    def test_linear_2d_with_bias_cpu(self):
+        """Test linear layer with 2D input and bias on CPU."""
+        in_features = 4
+        out_features = 5
         
-    #     # Create layers
-    #     onion_linear = Linear(in_features, out_features, bias=True, device_name="cpu")
-    #     torch_linear = torch.nn.Linear(in_features, out_features, bias=True)
+        # Create layers
+        onion_linear = Linear(in_features, out_features, bias=True, device_name="cpu")
+        torch_linear = torch.nn.Linear(in_features, out_features, bias=True)
         
-    #     # Compare outputs
-    #     self._compare_linear_outputs(onion_linear, torch_linear, self.data_2d, "cpu")
+        # Compare outputs
+        self._compare_linear_outputs(onion_linear, torch_linear, self.data_2d, "cpu")
 
     def test_linear_2d_without_bias_cpu(self):
         """Test linear layer with 2D input without bias on CPU."""
@@ -142,8 +142,8 @@ class TestLinear(unittest.TestCase):
         out_features = 5
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cuda")
-        torch_linear = torch.nn.Linear(in_features, out_features, bias=False).cuda()
+        onion_linear = Linear(in_features, out_features, bias=True, device_name="cuda")
+        torch_linear = torch.nn.Linear(in_features, out_features, bias=True).cuda()
         
         # Compare outputs
         self._compare_linear_outputs(onion_linear, torch_linear, self.data_2d, "cuda")
@@ -172,7 +172,7 @@ class TestLinear(unittest.TestCase):
         tensor_4d = Tensor(data_4d)
         
         with self.assertRaises(ValueError):
-            linear.apply(tensor_4d)
+            linear.forward(tensor_4d)
 
     def test_input_size_mismatch(self):
         """Test that Linear rejects input with wrong feature dimension."""
@@ -185,7 +185,7 @@ class TestLinear(unittest.TestCase):
         wrong_tensor = Tensor(wrong_data)
         
         with self.assertRaises(ValueError):
-            linear.apply(wrong_tensor)
+            linear.forward(wrong_tensor)
 
     def test_device_conversion(self):
         """Test moving the linear layer between devices."""
@@ -203,7 +203,7 @@ class TestLinear(unittest.TestCase):
         
         # Test that forward pass works with CUDA tensor
         input_tensor = Tensor(self.data_2d).to("cuda")
-        output = linear.apply(input_tensor)
+        output = linear.forward(input_tensor)
         
         self.assertTrue(output.is_cuda())
         
@@ -212,7 +212,7 @@ class TestLinear(unittest.TestCase):
         
         # Test that forward pass works with CPU tensor
         input_tensor = Tensor(self.data_2d)  # On CPU
-        output = linear.apply(input_tensor)
+        output = linear.forward(input_tensor)
         
         self.assertFalse(output.is_cuda())
 
