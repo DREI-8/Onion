@@ -38,6 +38,12 @@ public:
         const std::shared_ptr<Tensor>& b
     );
 
+    static std::shared_ptr<AutogradFunction> make_sum(
+        const std::shared_ptr<Tensor>& a,
+        int axis,
+        bool keepdims
+    );
+
     static std::shared_ptr<AutogradFunction> make_neg(
         const std::shared_ptr<Tensor>& a
     );

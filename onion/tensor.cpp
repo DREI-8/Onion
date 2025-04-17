@@ -390,7 +390,12 @@ std::shared_ptr<Tensor> Tensor::sum(int axis, bool keepdims) const {
         sum_tensor_cpu(this, result_data, out_size, shape_arr, out_ndim, adjusted_axis);
         delete[] shape_arr;
 
-        return std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim, this->requires_grad);
+        auto result = std::make_shared<Tensor>(result_data, out_shape.data(), out_ndim, this->requires_grad);
+        if (result->requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(shared_from_this());
+            result->grad_fn = AutogradFunction::make_sum(self_shared, adjusted_axis, keepdims);
+        }
+        return result;
     }
 }
 
