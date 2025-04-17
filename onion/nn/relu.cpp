@@ -1,7 +1,7 @@
 #include "relu.h"
 #include "relu_cuda.h"
 
-#include "Tensor.h"
+#include "../tensor.h"
 #include <algorithm>  // Pour std::max
 
 

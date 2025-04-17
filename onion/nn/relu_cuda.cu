@@ -1,4 +1,4 @@
-#include "Tensor.h"
+#include "../tensor.h"
 #include <cuda_runtime.h>
 #include <cstring>
 #include <stdexcept>
