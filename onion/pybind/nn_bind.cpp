@@ -19,7 +19,7 @@ ONION_EXPORT void init_module(py::module& m) {
              py::arg("in_features"),
              py::arg("out_features"),
              py::arg("bias") = true,
-             py::arg("device_name") = "cpu")
+             py::arg("device") = "cpu")
         
         .def_property_readonly("in_features", &Linear::get_in_features)
         .def_property_readonly("out_features", &Linear::get_out_features)
@@ -31,4 +31,6 @@ ONION_EXPORT void init_module(py::module& m) {
         .def_static("create_bias", &Linear::create_bias,
             py::arg("out_features"), py::arg("use_bias"), py::arg("device"))
         .def("forward", &Linear::forward, py::arg("input"));
+        .def("set_weights", &Linear::set_weights, py::arg("weights"))
+        .def("set_bias", &Linear::set_bias, py::arg("bias"))
 }

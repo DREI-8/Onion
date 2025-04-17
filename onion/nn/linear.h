@@ -12,6 +12,9 @@ class Linear : public Module {
         static Tensor create_weights(int in_features, int out_features, const char* device);
         static Tensor create_bias(int out_features, bool use_bias, const char* device);
 
+        void set_weights(const Tensor& weights);
+        void set_bias(const Tensor& bias);
+
         int get_in_features() const { return in_features_; }
         int get_out_features() const { return out_features_; }
         bool get_use_bias() const { return use_bias_; }

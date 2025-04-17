@@ -71,10 +71,24 @@ Tensor Linear::create_bias(int out_features, bool use_bias, const char* device) 
         
         Tensor tensor(bias_data, bias_shape, 1);
         delete[] bias_data;
-        
+
         return tensor.to(device);
     } else {
         int bias_shape[] = {0};
         return Tensor(nullptr, bias_shape, 1);
     }
+}
+
+void Linear::set_weights(const Tensor& weights) {
+    if (weights.shape[0] != in_features_ || weights.shape[1] != out_features_) {
+        throw std::invalid_argument("Weights shape does not match Linear layer shape.");
+    }
+    *weights_ = weights;
+}
+
+void Linear::set_bias(const Tensor& bias) {
+    if (use_bias_ && bias.shape[0] != out_features_) {
+        throw std::invalid_argument("Bias shape does not match Linear layer shape.");
+    }
+    *bias_ = bias;
 }
