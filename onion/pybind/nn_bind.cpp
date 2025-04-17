@@ -9,7 +9,6 @@ ONION_EXPORT void init_module(py::module& m) {
     py::module nn = m.def_submodule("nn", "Neural network modules");
 
     py::class_<Module>(nn, "Module")
-    nn
         .def(py::init<>(), "Base class for all neural network modules")
         .def("parameters", &Module::parameters, "Get parameters of the module")
         .def("to", &Module::to, "Move module to device")
@@ -21,10 +20,15 @@ ONION_EXPORT void init_module(py::module& m) {
              py::arg("out_features"),
              py::arg("bias") = true,
              py::arg("device_name") = "cpu")
-
-        .def_readwrite("weights", &Linear::weights)
-        .def_readwrite("bias", &Linear::bias)
-
-        .def("forward", &Linear::forward, py::arg("input"))
-        .def("to", &Linear::to, py::arg("device"), "Move layer to device");
+        
+        .def_property_readonly("in_features", &Linear::get_in_features)
+        .def_property_readonly("out_features", &Linear::get_out_features)
+        .def_property_readonly("use_bias", &Linear::get_use_bias)
+        .def_property_readonly("weights", &Linear::get_weights)
+        .def_property_readonly("bias", &Linear::get_bias)
+        .def_static("create_weights", &Linear::create_weights, 
+            py::arg("in_features"), py::arg("out_features"), py::arg("device"))
+        .def_static("create_bias", &Linear::create_bias,
+            py::arg("out_features"), py::arg("use_bias"), py::arg("device"))
+        .def("forward", &Linear::forward, py::arg("input"));
 }
