@@ -1,7 +1,8 @@
 import unittest
 import numpy as np
 import torch
-from onion import Tensor, Linear, is_cuda_available
+from onion import Tensor, is_cuda_available
+from onion.nn import Linear
 
 class TestLinear(unittest.TestCase):
     
@@ -36,7 +37,7 @@ class TestLinear(unittest.TestCase):
         # Copy weights from torch to onion to ensure fair comparison
         torch_weight = torch_layer.weight.detach().cpu().numpy()
         if hasattr(onion_layer, 'set_weights'):
-            onion_layer.set_weights(torch_weight.T)  # Transpose if needed based on your implementation
+            onion_layer.set_weights(Tensor(torch_weight.T))  # Transpose if needed based on your implementation
         else:
             # Copy weights manually (assuming weights are accessible)
             weight_tensor = Tensor(torch_weight.T)
@@ -46,13 +47,13 @@ class TestLinear(unittest.TestCase):
         if torch_layer.bias is not None and onion_layer.bias.size > 0:
             torch_bias = torch_layer.bias.detach().cpu().numpy()
             if hasattr(onion_layer, 'set_bias'):
-                onion_layer.set_bias(torch_bias)
+                onion_layer.set_bias(Tensor(torch_bias))
             else:
                 bias_tensor = Tensor(torch_bias)
                 onion_layer.bias = bias_tensor.to(device)
         
         # Forward pass
-        onion_output = onion_layer.apply(onion_tensor)
+        onion_output = onion_layer.forward(onion_tensor)
         if onion_output.is_cuda():
             onion_output = onion_output.to("cpu")
         torch_output = torch_layer(torch_tensor).cpu().detach().numpy()
@@ -74,7 +75,7 @@ class TestLinear(unittest.TestCase):
     #     out_features = 5
         
     #     # Create layers
-    #     onion_linear = Linear(in_features, out_features, bias=True, device_name="cpu")
+    #     onion_linear = Linear(in_features, out_features, bias=True, device="cpu")
     #     torch_linear = torch.nn.Linear(in_features, out_features, bias=True)
         
     #     # Compare outputs
@@ -86,7 +87,7 @@ class TestLinear(unittest.TestCase):
         out_features = 5
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cpu")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False)
         
         # Compare outputs
@@ -98,7 +99,7 @@ class TestLinear(unittest.TestCase):
         out_features = 3
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cpu")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False)
         
         # Compare outputs
@@ -110,7 +111,7 @@ class TestLinear(unittest.TestCase):
         out_features = 2
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cpu")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False)
         
         # Reshape 1D data to 2D (adding batch dimension)
@@ -124,14 +125,14 @@ class TestLinear(unittest.TestCase):
         # Test with zeros
         in_features = 4
         out_features = 3
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cpu")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False)
         self._compare_linear_outputs(onion_linear, torch_linear, self.data_zeros, "cpu")
         
         # Test with ones
         in_features = 2
         out_features = 4
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cpu")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False)
         self._compare_linear_outputs(onion_linear, torch_linear, self.data_ones, "cpu")
 
@@ -142,8 +143,8 @@ class TestLinear(unittest.TestCase):
         out_features = 5
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cuda")
-        torch_linear = torch.nn.Linear(in_features, out_features, bias=False).cuda()
+        onion_linear = Linear(in_features, out_features, bias=True, device="cuda")
+        torch_linear = torch.nn.Linear(in_features, out_features, bias=True).cuda()
         
         # Compare outputs
         self._compare_linear_outputs(onion_linear, torch_linear, self.data_2d, "cuda")
@@ -155,7 +156,7 @@ class TestLinear(unittest.TestCase):
         out_features = 3
         
         # Create layers
-        onion_linear = Linear(in_features, out_features, bias=False, device_name="cuda")
+        onion_linear = Linear(in_features, out_features, bias=False, device="cuda")
         torch_linear = torch.nn.Linear(in_features, out_features, bias=False).cuda()
         
         # Compare outputs
@@ -172,7 +173,7 @@ class TestLinear(unittest.TestCase):
         tensor_4d = Tensor(data_4d)
         
         with self.assertRaises(ValueError):
-            linear.apply(tensor_4d)
+            linear.forward(tensor_4d)
 
     def test_input_size_mismatch(self):
         """Test that Linear rejects input with wrong feature dimension."""
@@ -185,7 +186,7 @@ class TestLinear(unittest.TestCase):
         wrong_tensor = Tensor(wrong_data)
         
         with self.assertRaises(ValueError):
-            linear.apply(wrong_tensor)
+            linear.forward(wrong_tensor)
 
     def test_device_conversion(self):
         """Test moving the linear layer between devices."""
@@ -196,14 +197,14 @@ class TestLinear(unittest.TestCase):
         out_features = 3
         
         # Create on CPU
-        linear = Linear(in_features, out_features, bias=False, device_name="cpu")
+        linear = Linear(in_features, out_features, bias=False, device="cpu")
         
         # Move to CUDA
         linear.to("cuda")
         
         # Test that forward pass works with CUDA tensor
         input_tensor = Tensor(self.data_2d).to("cuda")
-        output = linear.apply(input_tensor)
+        output = linear.forward(input_tensor)
         
         self.assertTrue(output.is_cuda())
         
@@ -212,7 +213,7 @@ class TestLinear(unittest.TestCase):
         
         # Test that forward pass works with CPU tensor
         input_tensor = Tensor(self.data_2d)  # On CPU
-        output = linear.apply(input_tensor)
+        output = linear.forward(input_tensor)
         
         self.assertFalse(output.is_cuda())
 
