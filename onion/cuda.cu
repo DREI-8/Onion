@@ -901,17 +901,17 @@ void to_device(Tensor* tensor, const char* target_device) {
     }
 }
 
-Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> add_tensor_cuda(const Tensor& a, const Tensor& b) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
 
-Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> sub_tensor_cuda(const Tensor& a, const Tensor& b) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
 
-Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> mul_tensor_cuda(const Tensor& a, const Tensor& b) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
@@ -941,12 +941,12 @@ std::shared_ptr<Tensor> mean_tensor_cuda(const Tensor& tensor, int axis, bool ke
     throw std::runtime_error("CUDA not available");
 }
 
-Tensor matmul_gpu(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> matmul_gpu(const Tensor& a, const Tensor& b) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
 
-Tensor batch_matmul_gpu(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> batch_matmul_gpu(const Tensor& a, const Tensor& b) {
     fprintf(stderr, "CUDA not available in this build\n");
     throw std::runtime_error("CUDA not available");
 }
