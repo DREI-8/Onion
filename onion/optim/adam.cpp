@@ -34,16 +34,18 @@ void Adam::step() {
         auto& v = velocity[i];
 
         if (!param->grad) continue;
-        
-        for (int j = 0; j < m->size; j++) {
-            m->data.get()[j] = m->data.get()[j] * beta1 + param->grad->data.get()[j] * (1.0f - beta1);
-            v->data.get()[j] = v->data.get()[j] * beta2 + param->grad->data.get()[j] * param->grad->data.get()[j] * (1.0f - beta2);
-            
-            float m_hat = m->data.get()[j] / (1.0f - pow(beta1, t));
-            float v_hat = v->data.get()[j] / (1.0f - pow(beta2, t));
-            float denom = sqrt(v_hat) + eps;
+        m = m * beta1 + (param->grad) * (1.0f - beta1);
+        v = v * beta2 + (param->grad) * (param->grad) * (1.0f - beta2);
 
-            param->data.get()[j] -= lr * m_hat / denom;
+        std::shared_ptr<Tensor> m_hat = m / (1.0f - pow(beta1, t));
+        std::shared_ptr<Tensor> v_hat = v / (1.0f - pow(beta2, t));
+
+        std::shared_ptr<Tensor> denom = v_hat;
+        for (int j = 0; j < denom->size; j++) {
+            denom->data[j] = sqrt(denom->data[j]) + eps;
         }
+        std::shared_ptr<Tensor> update = (m_hat / denom) * lr;
+        param = param - update;
     }
+
 }

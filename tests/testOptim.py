@@ -56,7 +56,7 @@ class TestOptimizers(unittest.TestCase):
                 onion_param.numpy(),
                 torch_param.detach().numpy(),
                 atol=1e-6
-            ), f"Les mises à jour des paramètres diffèrent à l'étape {i+1}")
+            ), f"The parameter updates differ after step {i+1}")
             
             # Put gradients to zero for the next step
             onion_adam.zero_grad()
