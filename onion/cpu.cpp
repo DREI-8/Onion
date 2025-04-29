@@ -179,6 +179,12 @@ void transpose_3d_cpu(const Tensor* tensor, float* result_data) {
     }
 }
 
+void sqrt_tensor_cpu(const Tensor* tensor, float* result_data) {
+    for (int i = 0; i < tensor->size; i++) {
+        result_data[i] = sqrt(tensor->data[i]);
+    }
+}
+
 void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int adjusted_axis) {
 
     const int ndim = tensor->ndim;

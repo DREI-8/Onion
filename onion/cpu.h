@@ -18,6 +18,7 @@ void div_scalar_tensor_cpu(const Tensor* tensor, float scalar, float* result_dat
 
 void transpose_2d_cpu(const Tensor* tensor, float* result_data);
 void transpose_3d_cpu(const Tensor* tensor, float* result_data);
+void sqrt_tensor_cpu(const Tensor* tensor, float* result_data);
 
 void max_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);
 void min_tensor_cpu(const Tensor* tensor, float* result_data, int out_size, int* result_shape, int out_ndim, int axis);

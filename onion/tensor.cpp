@@ -868,6 +868,32 @@ std::shared_ptr<Tensor> Tensor::matmul(const std::shared_ptr<Tensor>& other) con
     }
 }
 
+std::shared_ptr<Tensor> Tensor::sqrt() const{
+    auto this_contig = std::make_shared<Tensor>(this->to_contiguous());
+
+    if (this->is_cuda()) {
+        // TODO: Implement CUDA sqrt
+        throw std::runtime_error("CUDA sqrt not implemented yet");
+    } else {
+        float* result_data = new float[this->size];
+        sqrt_tensor_cpu(this_contig.get(), result_data);
+        
+        int* shape_copy = new int[this_contig->ndim];
+        memcpy(shape_copy, this_contig->shape.get(), this_contig->ndim * sizeof(int));
+
+        auto result = std::make_shared<Tensor>(result_data, shape_copy, this_contig->ndim);
+        result->is_contiguous = true;
+
+        result->requires_grad = this->requires_grad;
+        if (result->requires_grad) {
+            auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
+            // result->grad_fn = AutogradFunction::make_sqrt(self_shared);
+        }
+
+        return result;
+    }
+}
+
 bool Tensor::contiguous() const {
     return is_contiguous;
 }
