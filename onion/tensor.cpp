@@ -887,7 +887,7 @@ std::shared_ptr<Tensor> Tensor::sqrt() const{
         result->requires_grad = this->requires_grad;
         if (result->requires_grad) {
             auto self_shared = std::const_pointer_cast<Tensor>(this->shared_from_this());
-            // result->grad_fn = AutogradFunction::make_sqrt(self_shared);
+            result->grad_fn = AutogradFunction::make_sqrt(self_shared, result);
         }
 
         return result;

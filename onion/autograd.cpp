@@ -376,4 +376,31 @@ std::shared_ptr<AutogradFunction> AutogradFunction::make_sum(
         backward_fn
     );
 }
+
+std::shared_ptr<AutogradFunction> AutogradFunction::make_sqrt(
+    const std::shared_ptr<Tensor>& a,
+    const std::shared_ptr<Tensor>& b
+) {
+    auto backward_fn = [a, b](const std::shared_ptr<Tensor>& grad) {
+        if (a->requires_grad) {
+            auto two_b = b * 2.0f;
+            auto grad_a = grad / two_b;
+
+            if (a->grad) {
+                a->grad = a->grad + grad_a;
+            } else {
+                a->grad = grad_a;
+            }
+
+            if (a->grad_fn) {
+                a->grad_fn->backward(a->grad);
+            }
+        }
+    };
+
+    return std::make_shared<AutogradFunction>(
+        std::vector<std::shared_ptr<Tensor>>{a, b},
+        backward_fn
+    );
+}
 // the rest to be added
