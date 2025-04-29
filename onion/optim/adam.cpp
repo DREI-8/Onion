@@ -40,10 +40,7 @@ void Adam::step() {
         std::shared_ptr<Tensor> m_hat = m / (1.0f - pow(beta1, t));
         std::shared_ptr<Tensor> v_hat = v / (1.0f - pow(beta2, t));
 
-        std::shared_ptr<Tensor> denom = v_hat;
-        for (int j = 0; j < denom->size; j++) {
-            denom->data[j] = sqrt(denom->data[j]) + eps;
-        }
+        std::shared_ptr<Tensor> denom = v_hat->sqrt() + eps;
         std::shared_ptr<Tensor> update = (m_hat / denom) * lr;
         param = param - update;
     }
