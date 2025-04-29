@@ -30,20 +30,21 @@ void Adam::step() {
     t++;
     for (size_t i = 0; i < parameters.size(); i++) {
         auto& param = parameters[i];
-        auto& m = momentum[i];
-        auto& v = velocity[i];
+        auto& current_m = momentum[i];
+        auto& current_v = velocity[i];
 
         if (!param->grad) continue;
-        
-        for (int j = 0; j < m->size; j++) {
-            m->data.get()[j] = m->data.get()[j] * beta1 + param->grad->data.get()[j] * (1.0f - beta1);
-            v->data.get()[j] = v->data.get()[j] * beta2 + param->grad->data.get()[j] * param->grad->data.get()[j] * (1.0f - beta2);
-            
-            float m_hat = m->data.get()[j] / (1.0f - pow(beta1, t));
-            float v_hat = v->data.get()[j] / (1.0f - pow(beta2, t));
-            float denom = sqrt(v_hat) + eps;
+        momentum[i] = current_m * beta1 + (param->grad) * (1.0f - beta1);
+        velocity[i] = current_v * beta2 + ((param->grad) * (param->grad)) * (1.0f - beta2);
 
-            param->data.get()[j] -= lr * m_hat / denom;
-        }
+        std::shared_ptr<Tensor> m_hat = momentum[i] / (1.0f - pow(beta1, t));
+        std::shared_ptr<Tensor> v_hat = velocity[i] / (1.0f - pow(beta2, t));
+
+        std::shared_ptr<Tensor> denom = v_hat->sqrt() + eps;
+        std::shared_ptr<Tensor> update = (m_hat / denom) * lr;
+        
+        std::shared_ptr<Tensor> new_param = param - update;
+        memcpy(param->data.get(), new_param->data.get(), param->size * sizeof(float));
     }
+
 }

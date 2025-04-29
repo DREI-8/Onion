@@ -96,7 +96,7 @@ __global__ void add_kernel(const float* a, const float* b, float* result, int si
     }
 }
 
-Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> add_tensor_cuda(const Tensor& a, const Tensor& b) {
     if (a.size != b.size) {
         throw std::runtime_error("Tensors must have same size for CUDA addition");
     }
@@ -115,11 +115,11 @@ Tensor add_tensor_cuda(const Tensor& a, const Tensor& b) {
     auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
     std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
     
-    Tensor result(shared_result, shape_copy, a.ndim);
+    auto result = std::make_shared<Tensor>(shared_result, shape_copy, a.ndim);
     
     const char* device_str = "cuda";
     size_t str_len = strlen(device_str) + 1;
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     
     return result;
 }
@@ -131,7 +131,7 @@ __global__ void subtract_kernel(const float* a, const float* b, float* result, i
     }
 }
 
-Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> sub_tensor_cuda(const Tensor& a, const Tensor& b) {
     if (a.size != b.size) {
         throw std::runtime_error("Tensors must have same size for CUDA subtraction");
     }
@@ -150,8 +150,8 @@ Tensor sub_tensor_cuda(const Tensor& a, const Tensor& b) {
     auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
     std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
     
-    Tensor result(shared_result, shape_copy, a.ndim);
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    auto result = std::make_shared<Tensor>(shared_result, shape_copy, a.ndim);
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     
     return result;
 }
@@ -163,7 +163,7 @@ __global__ void multiply_kernel(const float* a, const float* b, float* result, i
     }
 }
 
-Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> mul_tensor_cuda(const Tensor& a, const Tensor& b) {
     if (a.size != b.size) throw std::runtime_error("Tensors must have same size for CUDA multiplication");
     
     float* result_data;
@@ -178,8 +178,8 @@ Tensor mul_tensor_cuda(const Tensor& a, const Tensor& b) {
     memcpy(shape_copy, a.shape.get(), a.ndim * sizeof(int));
     
     auto deleter = [](float* p) { cudaFree(p); };
-    Tensor result(std::shared_ptr<float[]>(result_data, deleter), shape_copy, a.ndim);
-    result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+    auto result = std::make_shared<Tensor>(std::shared_ptr<float[]>(result_data, deleter), shape_copy, a.ndim);
+    result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
     
     return result;
 }
@@ -736,7 +736,7 @@ result[row * k + col] = sum;
 }
 }
 
-Tensor matmul_gpu(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> matmul_gpu(const Tensor& a, const Tensor& b) {
 // Vérification des dimensions
 if (a.ndim != 2 || b.ndim != 2 || a.shape[1] != b.shape[0]) {
 throw std::runtime_error("Invalid dimensions for matrix multiplication");
@@ -765,8 +765,8 @@ int* result_shape = new int[2]{m, k};
 auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
 std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
 
-Tensor result(shared_result, result_shape, 2);
-result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+auto result = std::make_shared<Tensor>(shared_result, result_shape, 2);
+result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
 
 return result;
 }
@@ -791,7 +791,7 @@ result[result_idx] = sum;
 }
 }
 
-Tensor batch_matmul_gpu(const Tensor& a, const Tensor& b) {
+std::shared_ptr<Tensor> batch_matmul_gpu(const Tensor& a, const Tensor& b) {
 // Vérification des dimensions minimales
 if (a.ndim < 2 || b.ndim < 2) {
 throw std::runtime_error("Both tensors must be at least 2D for matrix multiplication.");
@@ -872,8 +872,8 @@ result_shape = new int[2]{M, K};
 auto cuda_deleter = [](float* ptr) { cudaFree(ptr); };
 std::shared_ptr<float[]> shared_result(result_data, cuda_deleter);
 
-Tensor result(shared_result, result_shape, result_ndim);
-result.device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
+auto result = std::make_shared<Tensor>(shared_result, result_shape, result_ndim);
+result->device = std::shared_ptr<char[]>(strdup("cuda"), [](char* p) { free(p); });
 
 return result;
 }

@@ -14,5 +14,4 @@ PYBIND11_MODULE(onion, m) {
 	init_tensor(m);
 	init_optim(m);
 	init_nn(m);
-	init_relu(m);
 }

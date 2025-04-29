@@ -3,6 +3,6 @@
 
 #include "../tensor.h"
 
-Tensor relu_cuda(const Tensor& tensor);
+std::shared_ptr<Tensor> relu_cuda(const Tensor& tensor);
 
 #endif
