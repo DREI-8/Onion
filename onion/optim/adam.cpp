@@ -30,15 +30,15 @@ void Adam::step() {
     t++;
     for (size_t i = 0; i < parameters.size(); i++) {
         auto& param = parameters[i];
-        auto& m = momentum[i];
-        auto& v = velocity[i];
+        auto& current_m = momentum[i];
+        auto& current_v = velocity[i];
 
         if (!param->grad) continue;
-        m = m * beta1 + (param->grad) * (1.0f - beta1);
-        v = v * beta2 + (param->grad) * (param->grad) * (1.0f - beta2);
+        momentum[i] = current_m * beta1 + (param->grad) * (1.0f - beta1);
+        velocity[i] = current_v * beta2 + (param->grad) * (param->grad) * (1.0f - beta2);
 
-        std::shared_ptr<Tensor> m_hat = m / (1.0f - pow(beta1, t));
-        std::shared_ptr<Tensor> v_hat = v / (1.0f - pow(beta2, t));
+        std::shared_ptr<Tensor> m_hat = momentum[i] / (1.0f - pow(beta1, t));
+        std::shared_ptr<Tensor> v_hat = velocity[i] / (1.0f - pow(beta2, t));
 
         std::shared_ptr<Tensor> denom = v_hat->sqrt() + eps;
         std::shared_ptr<Tensor> update = (m_hat / denom) * lr;
