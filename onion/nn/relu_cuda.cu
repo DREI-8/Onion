@@ -1,8 +1,10 @@
 #include "../tensor.h"
-#include <cuda_runtime.h>
 #include <cstring>
 #include <stdexcept>
 #include "relu_cuda.h"
+
+#ifdef __CUDACC__
+#include <cuda_runtime.h>
 
 __global__ void relu_kernel(const float* input, float* output, int size) {
     int idx = blockIdx.x * blockDim.x + threadIdx.x;
@@ -53,3 +55,12 @@ std::shared_ptr<Tensor> relu_cuda(const Tensor& tensor) {
 
     return result;
 }
+
+#else
+
+std::shared_ptr<Tensor> relu_cuda(const Tensor& tensor) {
+    fprintf(stderr, "CUDA not available in this build\n");
+    throw std::runtime_error("CUDA not available");
+}
+
+#endif // __CUDACC__
