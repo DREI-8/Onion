@@ -35,14 +35,16 @@ void Adam::step() {
 
         if (!param->grad) continue;
         momentum[i] = current_m * beta1 + (param->grad) * (1.0f - beta1);
-        velocity[i] = current_v * beta2 + (param->grad) * (param->grad) * (1.0f - beta2);
+        velocity[i] = current_v * beta2 + ((param->grad) * (param->grad)) * (1.0f - beta2);
 
         std::shared_ptr<Tensor> m_hat = momentum[i] / (1.0f - pow(beta1, t));
         std::shared_ptr<Tensor> v_hat = velocity[i] / (1.0f - pow(beta2, t));
 
         std::shared_ptr<Tensor> denom = v_hat->sqrt() + eps;
         std::shared_ptr<Tensor> update = (m_hat / denom) * lr;
-        param = param - update;
+        
+        std::shared_ptr<Tensor> new_param = param - update;
+        memcpy(param->data.get(), new_param->data.get(), param->size * sizeof(float));
     }
 
 }
