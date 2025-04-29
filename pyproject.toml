@@ -1,10 +1,10 @@
 [build-system]
-requires = ["hatchling"]
-build-backend = "hatchling.build_hook"
+requires = ["scikit-build-core>=0.4.3", "pybind11>=2.11.1"]
+build-backend = "scikit_build_core.build"
 
 [project]
 name = "onion"
-version = "0.1.0a0" 
+version = "0.1.0a0"
 description = "A simple Deep Learning framework for Python."
 readme = "README.md"
 requires-python = ">=3.8"
@@ -13,9 +13,9 @@ authors = [
     {name = "AubinSeptier", email = "aubinseptier@gmail.com"},
     {name = "DREI-8", email = "auteur2@exemple.com"},
 ]
-keywords = ["onion"]
+keywords = ["onion", "deep-learning", "tensor"]
 classifiers = [
-    "Development Status :: Alpha",
+    "Development Status :: 3 - Alpha",
     "Intended Audience :: Developers",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
@@ -23,14 +23,20 @@ classifiers = [
     "Programming Language :: Python :: 3.9",
     "Programming Language :: Python :: 3.10",
     "Programming Language :: Python :: 3.11",
+    "Programming Language :: C++",
 ]
 
 [project.urls]
 "Homepage" = "https://github.com/"
 "Bug Tracker" = "https://github.com/"
 
-[tool.hatch.build.targets.wheel]
-packages = ["src/onion"]
+[tool.scikit-build]
+# Configuration du build C++/Python
+wheel.packages = []  # Nous utilisons des modules natifs, pas de packages Python purs
+cmake.verbose = true
+
+[tool.scikit-build.cmake.define]
+BUILD_PYTHON_BINDINGS = "ON"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]

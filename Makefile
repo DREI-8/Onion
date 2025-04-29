@@ -1,66 +1,92 @@
-# Makefile pour la compilation C++ du projet Onion avec CMake et gcc
+# Makefile for C++ compilation of the Onion project with CMake and gcc
 
 # Variables
-CPP_DIR = ./onion/cpp
-BUILD_DIR = ./build
+BUILD_DIR = build
+PYTHON = python
 CMAKE = cmake
 MAKE = make
 CMAKE_GENERATOR = "Unix Makefiles"
-DEBUG_DIR = $(BUILD_DIR)/debug
-RELEASE_DIR = $(BUILD_DIR)/release
 
-.PHONY: all clean build-cpp debug-cpp release-cpp
+ifeq ($(OS),Windows_NT)
+	PYTHON_EXECUTABLE = $(subst \,/,$(shell $(PYTHON) -c "import sys; print(sys.executable)"))
+	MKDIR = mkdir
+else
+	PYTHON_EXECUTABLE = $(shell $(PYTHON) -c "import sys; print(sys.executable)")
+	MKDIR = mkdir -p
+endif
 
-# Cible par défaut
-all: debug-cpp
+.PHONY: all clean debug release install wheel develop
 
-# Création des répertoires de build si nécessaire
-$(DEBUG_DIR):
-    mkdir -p $(DEBUG_DIR)
+all: release
 
-$(RELEASE_DIR):
-    mkdir -p $(RELEASE_DIR)
+$(BUILD_DIR):
+	$(MKDIR) $(BUILD_DIR)
 
-# Compilation en mode debug
-debug-cpp: $(DEBUG_DIR)
-    @echo "Compilation C++ en mode debug..."
-    cd $(DEBUG_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
-        -DCMAKE_BUILD_TYPE=Debug \
-        -DCMAKE_C_COMPILER=gcc \
-        -DCMAKE_CXX_COMPILER=g++ \
-        -DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
-        ../../$(CPP_DIR)
-    cd $(DEBUG_DIR) && $(MAKE)
+$(BUILD_DIR)/debug: $(BUILD_DIR)
+	$(MKDIR) $(BUILD_DIR)/debug
 
-# Compilation en mode release
-release-cpp: $(RELEASE_DIR)
-    @echo "Compilation C++ en mode release..."
-    cd $(RELEASE_DIR) && $(CMAKE) -G $(CMAKE_GENERATOR) \
-        -DCMAKE_BUILD_TYPE=Release \
-        -DCMAKE_C_COMPILER=gcc \
-        -DCMAKE_CXX_COMPILER=g++ \
-        ../../$(CPP_DIR)
-    cd $(RELEASE_DIR) && $(MAKE)
+$(BUILD_DIR)/release: $(BUILD_DIR)
+	$(MKDIR) $(BUILD_DIR)/release
 
-# Lancement du débugger sur un exécutable
-debug: debug-cpp
-    @echo "Pour débugger, utilisez: gdb $(DEBUG_DIR)/nom_executable"
+# Compile in debug mode
+debug: $(BUILD_DIR)/debug
+	@echo "Building in debug mode..."
+	cd $(BUILD_DIR)/debug && $(CMAKE) -G $(CMAKE_GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Debug \
+		-DCMAKE_EXPORT_COMPILE_COMMANDS=ON \
+		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
+		../..
+	cd $(BUILD_DIR)/debug && $(CMAKE) --build .
 
-# Nettoyage
+# Compile in release mode
+release: $(BUILD_DIR)/release
+	@echo "Building in release mode..."
+	cd $(BUILD_DIR)/release && $(CMAKE) -G $(CMAKE_GENERATOR) \
+		-DCMAKE_BUILD_TYPE=Release \
+		-DPython_EXECUTABLE=$(PYTHON_EXECUTABLE) \
+		../..
+	cd $(BUILD_DIR)/release && $(CMAKE) --build .
+
+# Install the C++ and Python modules
+install: release
+	@echo "Installing the Onion project..."
+	cd $(BUILD_DIR)/release && $(CMAKE) --install .
+
+# Create a wheel package
+wheel: release
+	@echo "Creating a wheel package..."
+	$(PYTHON) -m pip wheel . -w $(BUILD_DIR)/wheels
+
+# Install in develop mode
+develop: 
+	@echo "Installing in develop mode..."
+	$(PYTHON) -m pip install -e .
+
+# Clean the build directory
 clean:
-    rm -rf $(BUILD_DIR)
+	@echo "Cleaning the build directory..."
+	rm -rf $(BUILD_DIR)
 
-# Installation (après compilation release)
-install: release-cpp
-    cd $(RELEASE_DIR) && $(MAKE) install
+# Publish on TestPyPI
+test-publish: wheel
+	@echo "Publishing on TestPyPI..."
+	twine check $(BUILD_DIR)/wheels/*
+	twine upload --repository-url https://test.pypi.org/legacy/ $(BUILD_DIR)/wheels/*
 
-# Aide
+# Publish on PyPI
+publish: wheel
+	@echo "Publishing on PyPI..."
+	twine check $(BUILD_DIR)/wheels/*
+	twine upload $(BUILD_DIR)/wheels/*
+
+# Help
 help:
-    @echo "Cibles disponibles:"
-    @echo "  all         : compile le code C++ en mode debug (défaut)"
-    @echo "  debug-cpp   : compile les extensions C++ en mode debug"
-    @echo "  release-cpp : compile les extensions C++ en mode release (optimisé)"
-    @echo "  debug       : compile en debug et affiche la commande pour lancer gdb"
-    @echo "  install     : installe les composants C++ (après compilation release)"
-    @echo "  clean       : supprime les répertoires de build"
-    @echo "  help        : affiche cette aide"
+	@echo "Available targets:"
+	@echo "  all:     Build the project in release mode"
+	@echo "  debug:   Build the project in debug mode"
+	@echo "  release: Build the project in release mode"
+	@echo "  install: Install the C++ and Python modules"
+	@echo "  wheel:   Create a wheel package"
+	@echo "  develop: Install in develop mode"
+	@echo "  clean:   Clean the build directory"
+	@echo "  help:    Display this help message"
